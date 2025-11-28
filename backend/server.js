@@ -24,6 +24,8 @@ const { cleanupRevokedTokens } = require('./utils/cleanup');
 const authRoutes = require('./routes/auth');
 const profileRoutes = require('./routes/profile');
 const uploadRoutes = require('./routes/upload');
+const householdRoutes = require('./routes/households');
+const budgetRoutes = require('./routes/budgets');
 
 // Passport
 const passport = require('passport');
@@ -197,9 +199,10 @@ app.use('/auth', authRoutes);
 app.use('/profile', profileRoutes);
 app.use('/upload', uploadRoutes);
 
-// TODO: Add budget-tracker specific routes in Phase 2:
-// app.use('/households', householdRoutes);
-// app.use('/budgets', budgetRoutes);
+// Budget-tracker routes (Phase 2)
+app.use('/households', householdRoutes);
+app.use('/budgets', budgetRoutes);
+// TODO: Add remaining routes:
 // app.use('/expenses', expenseRoutes);
 // app.use('/categories', categoryRoutes);
 // app.use('/dashboard', dashboardRoutes);
