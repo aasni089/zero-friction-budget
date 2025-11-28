@@ -26,6 +26,7 @@ const profileRoutes = require('./routes/profile');
 const uploadRoutes = require('./routes/upload');
 const householdRoutes = require('./routes/households');
 const budgetRoutes = require('./routes/budgets');
+const expenseRoutes = require('./routes/expenses');
 
 // Passport
 const passport = require('passport');
@@ -202,8 +203,8 @@ app.use('/upload', uploadRoutes);
 // Budget-tracker routes (Phase 2)
 app.use('/households', householdRoutes);
 app.use('/budgets', budgetRoutes);
+app.use('/expenses', expenseRoutes);
 // TODO: Add remaining routes:
-// app.use('/expenses', expenseRoutes);
 // app.use('/categories', categoryRoutes);
 // app.use('/dashboard', dashboardRoutes);
 
