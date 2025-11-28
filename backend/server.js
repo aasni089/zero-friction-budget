@@ -24,8 +24,6 @@ const { cleanupRevokedTokens } = require('./utils/cleanup');
 const authRoutes = require('./routes/auth');
 const profileRoutes = require('./routes/profile');
 const uploadRoutes = require('./routes/upload');
-const webhookRoutes = require('./routes/webhooks');
-const adminRoutes = require('./routes/admin');
 
 // Passport
 const passport = require('passport');
@@ -112,12 +110,12 @@ app.use('/uploads', express.static(path.join(__dirname, 'public', 'uploads')));
 
 // Apply rate limiting conditionally based on environment
 if (process.env.NODE_ENV === 'production') {
-  // Global rate limiting (except for webhooks)
-  app.use(/^(?!\/webhooks).+/, apiLimiter);
-  
-  // You can also apply specific limiters to routes
+  // Global rate limiting
+  app.use(apiLimiter);
+
+  // Specific limiter for auth routes
   app.use('/auth', authLimiter);
-  
+
   logger.info('✅ Rate limiting enabled in production mode');
 } else {
   logger.info('⚠️ Rate limiting disabled in development mode');
@@ -198,8 +196,6 @@ app.get('/api-docs.json', (req, res) => {
 app.use('/auth', authRoutes);
 app.use('/profile', profileRoutes);
 app.use('/upload', uploadRoutes);
-app.use('/webhooks', webhookRoutes);
-app.use('/admin', adminRoutes);
 
 // TODO: Add budget-tracker specific routes in Phase 2:
 // app.use('/households', householdRoutes);

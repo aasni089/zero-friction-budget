@@ -1,6 +1,5 @@
 // controllers/profile/index.js
 const prisma = require('../../config/database');
-const { stripe } = require('../../utils/stripe');
 
 /**
  * Get user profile
