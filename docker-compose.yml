@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  # Note: Using Supabase cloud for database, not local PostgreSQL
+  # This docker-compose is primarily for backend development
+
+  backend:
+    build: ./backend
+    container_name: budget-tracker-backend
+    ports:
+      - "5000:5000"
+    environment:
+      - NODE_ENV=development
+    env_file:
+      - ./backend/.env
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    command: npm run dev
+    restart: unless-stopped
+
+  # Optional: Add PostgreSQL for local development (instead of Supabase)
+  # Uncomment this section if you want to develop without Supabase
+  # postgres:
+  #   image: postgres:16-alpine
+  #   container_name: budget-tracker-db
+  #   environment:
+  #     POSTGRES_USER: postgres
+  #     POSTGRES_PASSWORD: postgres
+  #     POSTGRES_DB: budget_tracker
+  #   ports:
+  #     - "5432:5432"
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
+  #   restart: unless-stopped
+
+# volumes:
+#   postgres_data:
