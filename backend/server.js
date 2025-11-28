@@ -28,6 +28,7 @@ const householdRoutes = require('./routes/households');
 const budgetRoutes = require('./routes/budgets');
 const expenseRoutes = require('./routes/expenses');
 const categoryRoutes = require('./routes/categories');
+const dashboardRoutes = require('./routes/dashboard');
 
 // Passport
 const passport = require('passport');
@@ -206,8 +207,7 @@ app.use('/households', householdRoutes);
 app.use('/budgets', budgetRoutes);
 app.use('/expenses', expenseRoutes);
 app.use('/categories', categoryRoutes);
-// TODO: Add remaining routes:
-// app.use('/dashboard', dashboardRoutes);
+app.use('/dashboard', dashboardRoutes);
 
 // Health check endpoint
 app.get('/health', (req, res) => {
