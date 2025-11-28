@@ -1,0 +1,339 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ============================================================================
+// USER & AUTHENTICATION MODELS
+// ============================================================================
+
+model User {
+  id                    String    @id @default(cuid())
+  email                 String    @unique
+  emailVerified         DateTime?
+  phone                 String?   @unique
+  name                  String?
+  image                 String?
+
+  // Auth fields (from proptech)
+  loginCode             String?
+  loginCodeExpiresAt    DateTime?
+  verificationAttempts  Int       @default(0)
+  preferredAuthMethod   AuthMethod @default(OTC)
+  allowAccountLinking   Boolean   @default(true)
+
+  // 2FA fields (from proptech)
+  twoFAEnabled          Boolean   @default(false)
+  twoFAVerified         Boolean   @default(false)
+  twoFASecret           String?
+  twoFAMethod           TwoFAMethod?
+  preferredLoginMethod  String?
+
+  // Status
+  role                  Role      @default(USER)
+  status                UserStatus @default(ACTIVE)
+
+  // Relationships
+  accounts              Account[]
+  sessions              Session[]
+  trustedDevices        TrustedDevice[]
+  notificationPrefs     NotificationPreference?
+  householdMemberships  HouseholdMember[]
+  ownedHouseholds       Household[]  @relation("HouseholdOwner")
+  expenses              Expense[]
+
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+}
+
+enum AuthMethod {
+  OTC
+  GOOGLE
+  MAGIC_LINK
+}
+
+enum TwoFAMethod {
+  EMAIL
+  SMS
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
+// ============================================================================
+// HOUSEHOLD MODELS
+// ============================================================================
+
+model Household {
+  id        String   @id @default(cuid())
+  name      String
+  ownerId   String
+  owner     User     @relation("HouseholdOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+
+  members   HouseholdMember[]
+  budgets   Budget[]
+  expenses  Expense[]
+  categories Category[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([ownerId])
+}
+
+model HouseholdMember {
+  id          String   @id @default(cuid())
+  householdId String
+  household   Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  role        MemberRole @default(MEMBER)
+  permissions Json?      // For future granular permissions
+
+  joinedAt    DateTime @default(now())
+
+  @@unique([householdId, userId])
+  @@index([userId])
+  @@index([householdId])
+}
+
+enum MemberRole {
+  OWNER
+  ADMIN
+  MEMBER
+  VIEWER
+}
+
+// ============================================================================
+// BUDGET MODELS
+// ============================================================================
+
+model Budget {
+  id          String   @id @default(cuid())
+  householdId String
+  household   Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+
+  name        String
+  amount      Float
+  period      BudgetPeriod
+  startDate   DateTime
+  endDate     DateTime?
+
+  categoryId  String?
+  category    Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  expenses    Expense[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([householdId])
+  @@index([categoryId])
+}
+
+enum BudgetPeriod {
+  WEEKLY
+  BIWEEKLY
+  MONTHLY
+  QUARTERLY
+  YEARLY
+  CUSTOM
+}
+
+// ============================================================================
+// CATEGORY MODELS
+// ============================================================================
+
+model Category {
+  id          String   @id @default(cuid())
+  householdId String
+  household   Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+
+  name        String
+  icon        String?   // Emoji or icon identifier
+  color       String?   // Hex color code
+
+  parentId    String?
+  parent      Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children    Category[] @relation("CategoryHierarchy")
+
+  budgets     Budget[]
+  expenses    Expense[]
+  recurringExpenses RecurringExpense[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([householdId])
+  @@index([parentId])
+}
+
+// ============================================================================
+// EXPENSE MODELS
+// ============================================================================
+
+model Expense {
+  id          String   @id @default(cuid())
+
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  householdId String
+  household   Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+
+  budgetId    String?
+  budget      Budget?  @relation(fields: [budgetId], references: [id], onDelete: SetNull)
+
+  categoryId  String?
+  category    Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  amount      Float
+  type        ExpenseType @default(EXPENSE)
+  description String?
+  date        DateTime  @default(now())
+
+  isRecurring Boolean  @default(false)
+  recurringId String?
+  recurring   RecurringExpense? @relation(fields: [recurringId], references: [id], onDelete: SetNull)
+
+  attachments String[]  // URLs to receipt images (future)
+  tags        String[]  // For future filtering
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId])
+  @@index([householdId])
+  @@index([budgetId])
+  @@index([categoryId])
+  @@index([date])
+}
+
+enum ExpenseType {
+  INCOME
+  EXPENSE
+  TRANSFER
+}
+
+model RecurringExpense {
+  id          String   @id @default(cuid())
+
+  frequency   RecurringFrequency
+  amount      Float
+  description String?
+
+  categoryId  String?
+  category    Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  startDate   DateTime
+  endDate     DateTime?
+  lastRun     DateTime?
+  nextRun     DateTime
+  isActive    Boolean  @default(true)
+
+  expenses    Expense[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([nextRun])
+  @@index([isActive])
+}
+
+enum RecurringFrequency {
+  DAILY
+  WEEKLY
+  BIWEEKLY
+  MONTHLY
+  QUARTERLY
+  YEARLY
+}
+
+// ============================================================================
+// AUTH MODELS (from proptech)
+// ============================================================================
+
+model Account {
+  id                 String  @id @default(cuid())
+  userId             String
+  type               String
+  provider           String
+  providerAccountId  String
+  refresh_token      String? @db.Text
+  access_token       String? @db.Text
+  expires_at         Int?
+  token_type         String?
+  scope              String?
+  id_token           String?  @db.Text
+  session_state      String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model RevokedToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  revokedAt DateTime @default(now())
+  expiresAt DateTime
+}
+
+model TrustedDevice {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deviceToken String  @unique
+  userAgent  String?
+  expiresAt  DateTime
+  lastUsedAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+
+  @@index([userId])
+  @@index([deviceToken])
+}
+
+model NotificationPreference {
+  id              String  @id @default(cuid())
+  userId          String  @unique
+  user            User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  email           Boolean @default(true)
+  sms             Boolean @default(false)
+  push            Boolean @default(true)
+  budgetAlerts    Boolean @default(true)
+  expenseUpdates  Boolean @default(true)
+  householdInvites Boolean @default(true)
+}
