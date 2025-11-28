@@ -1,374 +1,409 @@
-# Zero-Friction Budget - Development Plan
+# Budget Tracker - Web-First Development Plan
 
-## Overview
-A minimalist cross-platform budgeting app with offline-first architecture. Single codebase for iOS, Android, and Web.
+## Project Overview
 
-## Tech Stack
-- **Framework**: Flutter 3.x
-- **Language**: Dart
-- **Backend**: Firebase (Firestore + Authentication)
-- **Local Database**: Hive (offline-first storage)
-- **State Management**: Riverpod
-- **Auth**: Google OAuth only
-- **UI Style**: Adaptive (Cupertino on iOS, Material on Android)
+A household budget tracking application with real-time collaboration, built web-first with plans to expand to mobile later. The app leverages authentication and backend infrastructure from the [proptech project](https://github.com/aasni089/proptech) to accelerate development.
 
-## Core Features (MVP)
+**Key Features:**
+- ChatGPT-style centered expense input
+- Multi-household support with role-based permissions
+- Real-time updates across household members
+- Monthly budget tracking and dashboards
+- Simple, clean UI focused on ease of use
 
-### 1. Authentication
-- Google OAuth sign-in only
-- Automatic household creation for new users
+---
 
-### 2. Expense Entry (Home Screen)
-- Minimalist single-input design
-- Enter amount → Select category → Optional description → Confirm
-- Instant save with confirmation toast
-- Works fully offline
+## Technology Stack
 
-### 3. Dashboard
-- Total remaining budget for current month
-- List of budget categories with progress bars
-- Color coding: Green (<70%), Yellow (70-90%), Red (≥90%)
-- Side drawer navigation
+### Backend
+- **Runtime**: Node.js 20+
+- **Framework**: Express.js
+- **Database**: Supabase (PostgreSQL + real-time subscriptions)
+- **ORM**: Prisma
+- **Authentication**: JWT with multiple methods (OTC, Google OAuth, 2FA)
+- **Email**: Resend
+- **Validation**: Zod
+- **Rate Limiting**: express-rate-limit
 
-### 4. Budget Management
-- User-defined categories with monthly limits
-- Default categories on first launch
-- Add/Edit/Delete categories (Admin only)
-- Reorder categories
+### Frontend
+- **Framework**: Next.js 14 (App Router)
+- **Language**: TypeScript
+- **UI Library**: React 18
+- **Styling**: Tailwind CSS
+- **Components**: shadcn/ui (Radix UI)
+- **State Management**: Zustand with localStorage persistence
+- **API Client**: Domain-specific fetch clients
+- **Notifications**: Sonner (toast notifications)
 
-### 5. Household Management
-- Personal (single-user) or shared household budgeting
-- Admin can invite users via email
-- Role-based permissions:
-  - **Admin**: Full access (edit budget, manage users, all expense operations)
-  - **Standard**: View dashboard + add expenses only
+### Infrastructure
+- **Database Hosting**: Supabase (managed PostgreSQL)
+- **Local Development**: Docker Compose
+- **Version Control**: Git + GitHub
+- **Containerization**: Docker
 
-### 6. Expense Management
-- Edit/delete expenses (creator or Admin)
-- Filter by current month
-- Soft delete for sync integrity
+---
 
-### 7. Budget Reset Logic
-- All spending totals reset to $0 on the 1st of every month
-- Reset occurs at midnight in user's device timezone
+## Architecture Decisions
 
-## Architecture
+### Why Web-First?
+- Faster initial development and iteration
+- Easier deployment and updates
+- Broader accessibility (no app store approval)
+- Mobile apps can be added later using same backend
 
-### Offline-First Design
-```
-User Action → Local Hive DB (instant) → Sync to Firebase (when online)
-Firebase Change → Real-time listener → Update Hive → Update UI
-```
+### Why Supabase?
+- **Real-time built-in**: Live updates when household members add expenses
+- **PostgreSQL foundation**: Relational data with ACID guarantees
+- **Cost-effective**: Generous free tier (500MB DB, 50K MAU)
+- **Familiar tooling**: Can use Prisma ORM (same as proptech)
+- **No tech debt**: Enterprise-grade PostgreSQL with extras
+- **Fast development**: Auth, storage, and real-time out of the box
 
-**Benefits:**
-- App works 100% offline
-- Instant UI updates (no loading states)
-- Automatic sync when connection restored
-- Conflict resolution: last-write-wins
+### Leveraging Proptech Project
+The proptech project provides production-ready components that save 6-8 weeks of development:
 
-### Data Models
+**Reusable (90-100%):**
+- Complete authentication system (OTC, Google OAuth, 2FA with trusted devices)
+- User/Account/Session/Token data models
+- Email service (Resend integration with templates)
+- Middleware stack (auth, rate-limiting, validation, security)
+- Prisma setup and migration patterns
+- Frontend auth components and flows
+- shadcn/ui component library (25+ components)
+- Zustand state management patterns
+- API client architecture
+- Docker development environment
 
-```dart
-// All models have `isSynced` flag for sync tracking
+**Requires Adaptation:**
+- Replace property-specific models with budget models
+- Adapt routes/controllers for budget domain
+- Extend User model for household features
 
-UserModel {
-  id, email, displayName, photoUrl, householdId, createdAt
-}
+---
 
-HouseholdModel {
-  id, name, adminUserId, members: Map<userId, role>, timezone, createdAt
-}
+## Data Model
 
-BudgetCategoryModel {
-  id, householdId, name, monthlyLimit, icon, colorHex, order
-}
+### Core Entities
 
-ExpenseModel {
-  id, householdId, categoryId, amount, description,
-  createdByUserId, createdAt, monthKey, isDeleted
-}
-```
+#### User
+- Authentication fields (email, phone, emailVerified)
+- Personal info (name, avatar)
+- Auth preferences (preferredAuthMethod, twoFAEnabled)
+- Role-based access (USER, ADMIN)
+- Status (ACTIVE, INACTIVE, SUSPENDED)
 
-### Project Structure
-```
-lib/
-├── main.dart
-├── app.dart
-├── core/
-│   ├── constants/
-│   ├── theme/
-│   └── utils/
-├── data/
-│   ├── models/
-│   ├── repositories/
-│   └── services/ (hive, firebase, sync)
-├── providers/ (Riverpod)
-└── presentation/
-    ├── auth/
-    ├── home/
-    ├── dashboard/
-    ├── budget/
-    └── household/
-```
+#### Household
+- Basic info (name, ownerId)
+- Members via junction table (HouseholdMember)
+- Multiple budgets
+- Owned by one user, many members
+
+#### HouseholdMember
+- Links User to Household
+- Role (OWNER, ADMIN, MEMBER, VIEWER)
+- Permissions (JSON)
+- Join date
+
+#### Budget
+- Belongs to Household
+- Name, amount, period (MONTHLY, QUARTERLY, YEARLY, CUSTOM)
+- Start/end dates
+- Optional category link
+- Tracks expenses
+
+#### Category
+- Name, icon, color
+- Household-specific (custom categories per household)
+- Hierarchical (parent/child relationships)
+- Used for expense classification
+
+#### Expense (Transaction)
+- Belongs to User (who created it)
+- Belongs to Household
+- Optional Budget link
+- Optional Category link
+- Amount, description, date
+- Type (INCOME, EXPENSE, TRANSFER)
+- Recurring support
+- Attachment URLs (receipt photos)
+- Tags
+
+#### RecurringExpense
+- Frequency (DAILY, WEEKLY, MONTHLY, etc.)
+- Amount, description, category
+- Start/end dates
+- Auto-generation schedule (nextRun, lastRun)
+
+### Auth Models (from Proptech)
+- Account (OAuth providers)
+- Session
+- VerificationToken
+- RevokedToken (JWT blacklist)
+- TrustedDevice (2FA bypass)
+- NotificationPreference
+
+---
 
 ## Development Phases
 
-### Phase 0: Setup (Week 1) ✅
-- [x] Install Flutter SDK
-- [x] Initialize project
-- [x] Create GitHub repo
-- [x] Create issues
-- [x] Create plan.md
+### Phase 1: Project Setup & Backend Foundation (3-4 days)
 
-### Phase 1: Firebase & Authentication (Weeks 2-3)
-**Goal:** User can sign in with Google
+**1.1 Initialize Project Structure**
+- Create `/backend` and `/frontend` directories
+- Copy proptech backend as starting point
+- Remove property-specific code
+- Initialize Next.js 14 frontend
+- Setup Docker Compose
 
-**Tasks:**
-- Set up Firebase project
-- Configure Firebase for Flutter (Android/iOS/Web)
-- Add Firebase Auth + Google Sign-In packages
-- Implement Google OAuth login flow
-- Create user model and Hive setup
-- Build login screen with adaptive UI
-- Auto-create household on first sign-in
+**1.2 Database Setup**
+- Create Supabase project
+- Design Prisma schema (User, Household, Budget, Expense, Category, Auth tables)
+- Configure Prisma to work with Supabase
+- Run migrations
+- Seed default categories
 
-**Deliverable:** Working Google sign-in → Home screen
+**1.3 Authentication System**
+- Copy auth controllers from proptech (OTC, OAuth, 2FA, trusted devices)
+- Remove magic link authentication
+- Copy middleware (auth, rate-limiting, security)
+- Copy email templates and Resend integration
+- Setup session management
 
-### Phase 2: Local Data Layer (Weeks 3-4)
-**Goal:** Offline data storage working
+---
 
-**Tasks:**
-- Set up Hive database with all type adapters
-- Create all data models (User, Household, BudgetCategory, Expense)
-- Build repository pattern (base + concrete repos)
-- Set up Riverpod providers
-- Implement CRUD operations for local storage
-- Test data persistence across app restarts
+### Phase 2: Backend API Development (5-7 days)
 
-**Deliverable:** Data persists locally, survives app restart
+**2.1 Core API Routes**
+- **Auth** (`/auth/*`): Login, OAuth, 2FA, logout, profile
+- **Households** (`/households`): CRUD, invitations, member management
+- **Budgets** (`/budgets`): CRUD, progress tracking, rollover
+- **Expenses** (`/expenses`): CRUD with filters, bulk operations
+- **Categories** (`/categories`): CRUD, defaults, hierarchy
+- **Dashboard** (`/dashboard`): Monthly summary, trends, member contributions
 
-### Phase 3: Home Screen - Expense Entry (Week 5)
-**Goal:** Users can add expenses offline
+**2.2 Real-time Features**
+- Setup Supabase real-time subscriptions
+- Broadcast expense additions
+- Live budget progress updates
 
-**Tasks:**
-- Build minimalist home screen UI
-- Create amount input with currency formatting
-- Build category selection bottom sheet
-- Add optional description input
-- Implement local expense save
-- Create confirmation toast/snackbar
-- Add form validation
+---
 
-**Deliverable:** Full expense entry flow working offline
+### Phase 3: Frontend Development (7-10 days)
 
-### Phase 4: Dashboard & Budget Display (Week 6)
-**Goal:** View spending and budget progress
+**3.1 Project Setup**
+- Initialize Next.js 14 with TypeScript
+- Setup Tailwind CSS
+- Install shadcn/ui components
+- Setup Zustand store
+- Create API client architecture
 
-**Tasks:**
-- Create dashboard with drawer navigation
-- Build "Total Remaining" calculation
-- Display category list with progress bars
-- Add color coding logic
-- Implement monthly filtering (current month only)
-- Show expense count per category
+**3.2 Authentication Flow**
+- Copy auth components from proptech
+- Login page (OTC + Google OAuth)
+- 2FA flows
+- Protected routes
+- Auth state management
 
-**Deliverable:** Dashboard shows current month's budget status
+**3.3 Main Layout & Navigation**
+- Expandable sidebar (profile, household selector, nav links)
+- Responsive design
+- Top bar with household context
 
-### Phase 5: Budget Management (Week 7)
-**Goal:** Create and edit budget categories
+**3.4 Expense Input (ChatGPT-style)**
+- Centered input field on home page
+- Amount, category, description, date
+- Submit on Enter
+- Toast notifications
+- Real-time expense list update
 
-**Tasks:**
-- Build budget edit screen
-- Add default category presets on first launch
-- Implement add/edit/delete category
-- Support reordering categories (drag-to-reorder)
-- Admin-only permission enforcement
-- Test CRUD operations
+**3.5 Budgets Page**
+- List of budgets (cards/table)
+- Progress bars
+- Create/edit/delete modals
+- Period filters
 
-**Deliverable:** Full budget category management
+**3.6 Monthly Dashboard**
+- Summary cards (total expenses, remaining budget, top categories)
+- Charts (spending by category, daily trends, budget vs actual)
+- Recent transactions list
 
-### Phase 6: Firebase Sync (Weeks 8-9)
-**Goal:** Multi-device synchronization working
+**3.7 Settings Pages**
+- User Profile (name, email, avatar)
+- Account Settings (auth preferences, 2FA, trusted devices)
+- Household Settings (members, roles, invitations)
 
-**Tasks:**
-- Implement Firebase write operations
-- Create bidirectional sync service
-- Add Firestore real-time listeners
-- Handle sync conflicts (last-write-wins)
-- Deploy Firebase Security Rules
-- Test multi-device sync
-- Test offline → online transitions
+**3.8 UI Components**
+- Copy shadcn/ui components from proptech
+- Custom budget-specific components
+- Loading states and error boundaries
 
-**Deliverable:** Data syncs across devices in real-time
+---
 
-### Phase 7: Household Features (Week 10)
-**Goal:** Multi-user households with permissions
+### Phase 4: Real-time & Enhancements (3-4 days)
 
-**Tasks:**
-- Create household settings screen
-- Build member invitation system (email/link)
-- Implement role assignment (Admin/Standard)
-- Add permission-based UI hiding
-- Test admin vs standard user flows
-- Implement leave household
+**4.1 Real-time Updates**
+- Setup Supabase client in frontend
+- Subscribe to expense changes
+- Optimistic UI updates
+- Live notifications
 
-**Deliverable:** Shared household budgeting works
+**4.2 Recurring Expenses**
+- Backend scheduler for recurring expense generation
+- UI for managing recurring expenses
 
-### Phase 8: Expense Management (Week 11)
-**Goal:** Edit and delete expenses
+**4.3 Categories & Customization**
+- Default category library
+- Custom category creation with icon picker
+- Category analytics
 
-**Tasks:**
-- Create expense list view
-- Add expense detail/edit dialog
-- Implement edit functionality
-- Add delete with confirmation
-- Sync deletions (soft delete)
-- Test permissions (creator or Admin)
+---
 
-**Deliverable:** Full expense CRUD
+### Phase 5: Testing & Deployment (2-3 days)
 
-### Phase 9: Polish & Testing (Week 12)
-**Goal:** Production-ready MVP
+**5.1 Testing**
+- Authentication flows
+- Household multi-tenancy (data isolation)
+- Real-time updates
+- Budget calculations
+- Cross-browser testing
 
-**Tasks:**
-- Add loading states and error handling
-- Implement user-friendly error messages
-- Add haptic feedback
-- Create app icons (Android/iOS/Web)
-- Write integration tests
-- Test extensively (offline, sync, multi-user)
-- Fix all bugs
+**5.2 Deployment Preparation**
+- Environment configuration
+- Docker Compose for production
+- Database migrations
+- Security audit
 
-**Deliverable:** Polished, tested MVP
+**5.3 Documentation**
+- API documentation (Swagger)
+- Setup instructions (README)
+- Environment variables guide
 
-### Phase 10: iOS Build Setup (Week 13)
-**Goal:** First iOS build via CI/CD
+---
 
-**Tasks:**
-- Set up GitHub Actions workflow
-- Configure iOS code signing
-- Create first iOS build
-- Test on physical device (if available)
-- Document build process
+## Timeline Estimate
 
-**Deliverable:** Automated iOS builds
+- **Phase 1**: 3-4 days
+- **Phase 2**: 5-7 days
+- **Phase 3**: 7-10 days
+- **Phase 4**: 3-4 days
+- **Phase 5**: 2-3 days
 
-## Firebase Security Rules
+**Total MVP**: ~3-4 weeks
 
-```javascript
-// Enforce household data isolation and role-based access
+**Time Saved by Reusing Proptech**: 6-8 weeks
 
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
+---
 
-    function isAuthenticated() {
-      return request.auth != null;
-    }
+## Feature Priorities
 
-    function getUserHouseholdId() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.householdId;
-    }
+### MVP (Must Have)
+- [x] User authentication (OTC, Google OAuth, 2FA)
+- [ ] Household creation and member invitations
+- [ ] Expense entry (amount, category, description, date)
+- [ ] Budget creation and tracking
+- [ ] Monthly dashboard with basic charts
+- [ ] Real-time updates for household members
+- [ ] User/account/household settings
 
-    function isHouseholdMember(householdId) {
-      return isAuthenticated() && getUserHouseholdId() == householdId;
-    }
+### V2 (Should Have)
+- [ ] Recurring expenses
+- [ ] Receipt photo uploads
+- [ ] Category customization and hierarchy
+- [ ] Budget templates
+- [ ] Export data (CSV, PDF)
+- [ ] Email notifications for budget limits
+- [ ] Expense search and advanced filters
 
-    function isHouseholdAdmin(householdId) {
-      let household = get(/databases/$(database)/documents/households/$(householdId));
-      return household.data.members[request.auth.uid] == 'admin';
-    }
+### V3 (Nice to Have)
+- [ ] Mobile apps (iOS, Android)
+- [ ] AI-powered expense categorization
+- [ ] Bill splitting within household
+- [ ] Multi-currency support
+- [ ] Bank account integration (Plaid)
+- [ ] Savings goals
+- [ ] Financial insights and recommendations
 
-    // Users: read/write own data only
-    match /users/{userId} {
-      allow read, write: if isAuthenticated() && request.auth.uid == userId;
-    }
+---
 
-    // Households: members read, admin write
-    match /households/{householdId} {
-      allow read: if isHouseholdMember(householdId);
-      allow create: if isAuthenticated();
-      allow update, delete: if isHouseholdAdmin(householdId);
-    }
+## Security Considerations
 
-    // Budget categories: members read, admin write
-    match /budgetCategories/{categoryId} {
-      allow read: if isHouseholdMember(resource.data.householdId);
-      allow write: if isAuthenticated() &&
-                      isHouseholdMember(request.resource.data.householdId) &&
-                      isHouseholdAdmin(request.resource.data.householdId);
-    }
+- JWT authentication with token expiration
+- Token revocation list for logout
+- Rate limiting on all endpoints (5 req/5min for auth)
+- Two-factor authentication with trusted devices
+- Row-level security in Supabase
+- CORS configuration
+- Helmet security headers
+- Input validation with Zod
+- SQL injection prevention via Prisma
+- XSS prevention
+- CSRF protection
 
-    // Expenses: members read, creator/admin write
-    match /expenses/{expenseId} {
-      allow read: if isHouseholdMember(resource.data.householdId);
-      allow create: if isAuthenticated() &&
-                       isHouseholdMember(request.resource.data.householdId);
-      allow update, delete: if isAuthenticated() &&
-                               (resource.data.createdByUserId == request.auth.uid ||
-                                isHouseholdAdmin(resource.data.householdId));
-    }
-  }
-}
-```
+---
 
-## Key Design Patterns
+## Deployment Strategy
 
-### 1. Repository Pattern
-Abstraction layer between UI and data sources:
-```dart
-abstract class Repository<T> {
-  Future<List<T>> getAll();
-  Future<T?> getById(String id);
-  Future<void> create(T item);
-  Future<void> update(T item);
-  Future<void> delete(String id);
-}
-```
+### Development
+- Local PostgreSQL via Docker Compose
+- Local Supabase CLI for real-time testing
+- Hot reload for frontend and backend
 
-### 2. MVVM with Riverpod
-- **Models**: Data classes (in `data/models/`)
-- **ViewModels**: Riverpod providers (in `providers/`)
-- **Views**: Widgets (in `presentation/`)
+### Staging
+- Supabase staging project
+- Vercel preview deployments for frontend
+- Railway/Render for backend staging
 
-### 3. Service Layer
-- **HiveService**: Local database operations
-- **FirebaseService**: Cloud database operations
-- **SyncService**: Orchestrates local ↔ cloud sync
+### Production
+- Supabase production project
+- Vercel for frontend hosting
+- Railway/Render/Fly.io for backend hosting
+- CloudFlare for CDN and DDoS protection
+- Sentry for error tracking
+- CI/CD via GitHub Actions
 
-## Development Environment
+---
 
-### Required Tools
-- Flutter SDK 3.x
-- Dart 3.x
-- Git
-- VS Code or Android Studio
-- GitHub account
-- Firebase account (free tier)
-- Google Cloud Console access (for OAuth)
+## Project Name Ideas
 
-### Recommended VS Code Extensions
-- Flutter
-- Dart
-- Error Lens
-- GitLens
-- Riverpod Snippets
+The current repo is `zero-friction-budget` but we're open to renaming. Ideas:
 
-## Timeline
-**Total: ~12 weeks** for solo beginner developer
+- **budget-buddy** - Friendly and approachable
+- **household-ledger** - Professional, clear purpose
+- **expense-share** - Emphasizes collaboration
+- **pennypilot** - Catchy, guides you through budgeting
+- **splitwise-alternative** - (if focusing on household splitting)
+- **budget-hive** - Collaboration + organization
+- **cashflow-tracker** - Professional, clear
+- **spend-together** - Social, household-focused
 
-## Future Features (Post-MVP v2.0)
-- Monthly history and spending trends
-- Expense search and filtering
-- Data export (CSV/PDF)
-- Recurring expenses
-- Budget templates
-- Push notifications for budget alerts
-- Bill splitting
-- Multiple currencies
+Current preference: TBD
 
-## Notes
-- **Android SDK**: Install later when ready to test on Android
-- **iOS Builds**: Requires Mac for final testing, but GitHub Actions can build remotely
-- **Web Deployment**: Can deploy to Firebase Hosting (free tier)
-- **No Mac Needed**: Develop 100% on Ubuntu, use CI/CD for iOS builds
+---
+
+## Next Steps
+
+1. ✅ Close old Flutter/Firebase issues
+2. ✅ Create this plan.md
+3. [ ] Initialize project structure
+4. [ ] Copy and adapt proptech backend
+5. [ ] Setup Supabase project
+6. [ ] Design and implement Prisma schema
+7. [ ] Build backend API routes
+8. [ ] Initialize Next.js frontend
+9. [ ] Implement authentication UI
+10. [ ] Build expense input and dashboard
+
+---
+
+## Resources
+
+- [Proptech Project](https://github.com/aasni089/proptech)
+- [Supabase Documentation](https://supabase.com/docs)
+- [Next.js 14 Documentation](https://nextjs.org/docs)
+- [Prisma Documentation](https://www.prisma.io/docs)
+- [shadcn/ui Components](https://ui.shadcn.com)
+- [Zustand State Management](https://zustand-demo.pmnd.rs)
+
+---
+
+_Last Updated: 2025-11-28_
