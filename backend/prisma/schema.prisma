@@ -87,6 +87,7 @@ model Household {
   budgets   Budget[]
   expenses  Expense[]
   categories Category[]
+  invitations Invitation[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -116,6 +117,21 @@ enum MemberRole {
   ADMIN
   MEMBER
   VIEWER
+}
+
+model Invitation {
+  id          String   @id @default(cuid())
+  token       String   @unique
+  householdId String
+  household   Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  email       String
+  role        MemberRole @default(MEMBER)
+  expiresAt   DateTime
+  usedAt      DateTime?
+  createdAt   DateTime @default(now())
+
+  @@index([token])
+  @@index([expiresAt])
 }
 
 // ============================================================================

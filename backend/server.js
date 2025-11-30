@@ -17,13 +17,19 @@ const { apiLimiter, authLimiter } = require('./middleware/rate-limit');
 const { authenticateToken } = require('./middleware/auth');
 const { handleUploadErrors } = require('./middleware/upload');
 
-// Clean up job
+// Clean up jobs
 const { cleanupRevokedTokens } = require('./utils/cleanup');
+const { cleanupExpiredInvitations } = require('./utils/cleanup-invitations');
 
 // Import routes
 const authRoutes = require('./routes/auth');
 const profileRoutes = require('./routes/profile');
 const uploadRoutes = require('./routes/upload');
+const householdRoutes = require('./routes/households');
+const budgetRoutes = require('./routes/budgets');
+const expenseRoutes = require('./routes/expenses');
+const categoryRoutes = require('./routes/categories');
+const dashboardRoutes = require('./routes/dashboard');
 
 // Passport
 const passport = require('passport');
@@ -197,12 +203,12 @@ app.use('/auth', authRoutes);
 app.use('/profile', profileRoutes);
 app.use('/upload', uploadRoutes);
 
-// TODO: Add budget-tracker specific routes in Phase 2:
-// app.use('/households', householdRoutes);
-// app.use('/budgets', budgetRoutes);
-// app.use('/expenses', expenseRoutes);
-// app.use('/categories', categoryRoutes);
-// app.use('/dashboard', dashboardRoutes);
+// Budget-tracker routes (Phase 2)
+app.use('/households', householdRoutes);
+app.use('/budgets', budgetRoutes);
+app.use('/expenses', expenseRoutes);
+app.use('/categories', categoryRoutes);
+app.use('/dashboard', dashboardRoutes);
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -297,6 +303,7 @@ const startCleanupJob = () => {
   setInterval(async () => {
     try {
       await cleanupRevokedTokens();
+      await cleanupExpiredInvitations();
     } catch (error) {
       logger.error('Error running cleanup job:', error);
     }
