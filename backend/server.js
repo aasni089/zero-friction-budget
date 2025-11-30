@@ -17,8 +17,9 @@ const { apiLimiter, authLimiter } = require('./middleware/rate-limit');
 const { authenticateToken } = require('./middleware/auth');
 const { handleUploadErrors } = require('./middleware/upload');
 
-// Clean up job
+// Clean up jobs
 const { cleanupRevokedTokens } = require('./utils/cleanup');
+const { cleanupExpiredInvitations } = require('./utils/cleanup-invitations');
 
 // Import routes
 const authRoutes = require('./routes/auth');
@@ -302,6 +303,7 @@ const startCleanupJob = () => {
   setInterval(async () => {
     try {
       await cleanupRevokedTokens();
+      await cleanupExpiredInvitations();
     } catch (error) {
       logger.error('Error running cleanup job:', error);
     }

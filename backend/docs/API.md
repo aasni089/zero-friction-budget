@@ -575,7 +575,7 @@ Permanently delete a household and all associated data (budgets, expenses, categ
 
 **POST** `/households/:id/invite`
 
-Invite a new member to the household via email.
+Invite a new member to the household via email with a secure invitation token.
 
 **Authorization:** Bearer token required
 **Required Role:** ADMIN or OWNER
@@ -597,8 +597,7 @@ Invite a new member to the household via email.
   "success": true,
   "data": {
     "message": "Invitation sent successfully",
-    "invitationToken": "inv_xYz123AbC...",
-    "expiresAt": "2025-12-06T10:00:00Z"
+    "email": "newmember@example.com"
   }
 }
 ```
@@ -612,13 +611,19 @@ Invite a new member to the household via email.
 - `403`: Insufficient permissions (requires ADMIN or OWNER)
 - `404`: Household not found
 
+**Security Features:**
+- Generates a secure 64-character random token
+- Token is stored in database with 7-day expiration
+- Invitation email includes token in the invite link
+- Token is single-use (marked as used after successful join)
+
 ---
 
 ### 7. Join Household
 
 **POST** `/households/:id/join`
 
-Accept an invitation and join a household.
+Accept an invitation and join a household with secure token validation.
 
 **Authorization:** Bearer token required
 
@@ -628,8 +633,7 @@ Accept an invitation and join a household.
 **Request Body:**
 ```json
 {
-  "token": "inv_xYz123AbC...",
-  "role": "MEMBER"  // Optional, typically set by invitation
+  "token": "64-character-secure-token"
 }
 ```
 
@@ -649,9 +653,31 @@ Accept an invitation and join a household.
 }
 ```
 
+**Validation:**
+- `token`: Required, 64-character string
+
 **Errors:**
-- `400`: Already a member, or invalid/expired token
+- `400`: Invalid invitation token
+- `400`: Invitation token has expired
+- `400`: Invitation token has already been used
+- `400`: Invalid invitation token for this household
+- `400`: Email does not match invitation
+- `400`: Already a member of this household
 - `404`: Household not found
+
+**Security Validations:**
+1. **Token Existence:** Verifies token exists in database
+2. **Expiration Check:** Ensures token hasn't expired (7-day lifetime)
+3. **Usage Check:** Validates token hasn't been used before
+4. **Household Match:** Confirms token is for the requested household
+5. **Email Verification:** Validates user email matches invitation email
+6. **Single-Use:** Marks token as used after successful join
+
+**Notes:**
+- The role is determined by the invitation, not the request body
+- Tokens expire 7 days after creation
+- Used tokens cannot be reused
+- Expired invitations are automatically cleaned up by background job
 
 ---
 

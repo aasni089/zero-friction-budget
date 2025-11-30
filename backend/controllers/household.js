@@ -455,10 +455,23 @@ exports.inviteMember = async (req, res) => {
       });
     }
 
-    // Generate invitation token (for now, we'll store it in a simple way)
-    // In production, you might want to create an Invitation table
+    // Generate invitation token and store in database
     const token = generateInvitationToken();
-    const inviteLink = `${process.env.FRONTEND_URL}/households/join?token=${token}&householdId=${householdId}&email=${validatedData.email}&role=${validatedData.role}`;
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 7); // 7 days from now
+
+    // Create invitation record
+    await prisma.invitation.create({
+      data: {
+        token,
+        householdId,
+        email: validatedData.email,
+        role: validatedData.role,
+        expiresAt,
+      },
+    });
+
+    const inviteLink = `${process.env.FRONTEND_URL}/households/join?token=${token}`;
 
     // Send invitation email
     await sendEmail({
@@ -535,20 +548,63 @@ async function getUserIdByEmail(email) {
 exports.joinHousehold = async (req, res) => {
   try {
     const { id: householdId } = req.params;
-    const { token, role = 'MEMBER' } = req.body;
+    const validatedData = joinHouseholdSchema.parse(req.body);
+    const { token } = validatedData;
     const userId = req.user.id;
 
-    // In a production app, you'd validate the token from an Invitation table
-    // For now, we'll accept the request if the household exists
-    const household = await prisma.household.findUnique({
-      where: { id: householdId },
+    // Validate invitation token
+    const invitation = await prisma.invitation.findUnique({
+      where: { token },
+      include: {
+        household: true,
+      },
     });
 
-    if (!household) {
-      return res.status(404).json({
+    if (!invitation) {
+      return res.status(400).json({
         success: false,
         error: {
-          message: 'Household not found',
+          message: 'Invalid invitation token',
+        },
+      });
+    }
+
+    // Check if token has expired
+    if (invitation.expiresAt < new Date()) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          message: 'Invitation token has expired',
+        },
+      });
+    }
+
+    // Check if token has already been used
+    if (invitation.usedAt) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          message: 'Invitation token has already been used',
+        },
+      });
+    }
+
+    // Verify household ID matches
+    if (invitation.householdId !== householdId) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          message: 'Invalid invitation token for this household',
+        },
+      });
+    }
+
+    // Validate email matches (if user has email)
+    if (req.user.email && invitation.email !== req.user.email) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          message: 'Email does not match invitation',
         },
       });
     }
@@ -572,12 +628,12 @@ exports.joinHousehold = async (req, res) => {
       });
     }
 
-    // Create household member
+    // Create household member and mark invitation as used
     const member = await prisma.householdMember.create({
       data: {
         householdId,
         userId,
-        role: role || 'MEMBER',
+        role: invitation.role,
       },
       include: {
         household: true,
@@ -592,13 +648,31 @@ exports.joinHousehold = async (req, res) => {
       },
     });
 
-    logger.info(`User ${userId} joined household ${householdId}`);
+    // Mark invitation as used
+    await prisma.invitation.update({
+      where: { id: invitation.id },
+      data: {
+        usedAt: new Date(),
+      },
+    });
+
+    logger.info(`User ${userId} joined household ${householdId} via invitation ${invitation.id}`);
 
     res.json({
       success: true,
       data: member,
     });
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          message: 'Validation failed',
+          details: error.errors,
+        },
+      });
+    }
+
     logger.error('Error joining household:', error);
     res.status(500).json({
       success: false,
