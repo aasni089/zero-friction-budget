@@ -1,0 +1,691 @@
+{
+  "info": {
+    "name": "Zero Friction Budget API - Phase 2",
+    "description": "Complete collection of 33 Budget Tracker API endpoints with real-time features.\n\n**Setup Instructions:**\n1. Import this collection into Postman\n2. Create environment with variables: base_url, token, householdId, budgetId, categoryId, expenseId\n3. Login via /auth/login to get JWT token\n4. Save token in environment variable\n5. Use {{token}} in Authorization headers\n\n**Environment Variables:**\n- base_url: http://localhost:5000\n- token: Your JWT token from login\n- householdId: Household UUID\n- budgetId: Budget UUID\n- categoryId: Category UUID  \n- expenseId: Expense UUID\n",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:5000",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Household Management",
+      "description": "10 endpoints for managing households and members",
+      "item": [
+        {
+          "name": "1. Create Household",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Smith Family Budget\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/households",
+              "host": ["{{base_url}}"],
+              "path": ["households"]
+            },
+            "description": "Create a new household. The creator automatically becomes the OWNER."
+          }
+        },
+        {
+          "name": "2. List User's Households",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/households",
+              "host": ["{{base_url}}"],
+              "path": ["households"]
+            },
+            "description": "List all households the authenticated user is a member of."
+          }
+        },
+        {
+          "name": "3. Get Household Details",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/households/{{householdId}}",
+              "host": ["{{base_url}}"],
+              "path": ["households", "{{householdId}}"]
+            },
+            "description": "Get detailed information about a specific household including members."
+          }
+        },
+        {
+          "name": "4. Update Household",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated Family Budget\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/households/{{householdId}}",
+              "host": ["{{base_url}}"],
+              "path": ["households", "{{householdId}}"]
+            },
+            "description": "Update household settings. Requires ADMIN or OWNER role."
+          }
+        },
+        {
+          "name": "5. Delete Household",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/households/{{householdId}}",
+              "host": ["{{base_url}}"],
+              "path": ["households", "{{householdId}}"]
+            },
+            "description": "Delete household and all associated data. OWNER only. IRREVERSIBLE!"
+          }
+        },
+        {
+          "name": "6. Invite Member",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"newmember@example.com\",\n  \"role\": \"MEMBER\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/households/{{householdId}}/invite",
+              "host": ["{{base_url}}"],
+              "path": ["households", "{{householdId}}", "invite"]
+            },
+            "description": "Invite a new member to the household. ADMIN or OWNER role required."
+          }
+        },
+        {
+          "name": "7. Join Household",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"inv_xYz123AbC...\",\n  \"role\": \"MEMBER\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/households/{{householdId}}/join",
+              "host": ["{{base_url}}"],
+              "path": ["households", "{{householdId}}", "join"]
+            },
+            "description": "Accept an invitation and join a household."
+          }
+        },
+        {
+          "name": "8. Remove Member",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/households/{{householdId}}/members/:userId",
+              "host": ["{{base_url}}"],
+              "path": ["households", "{{householdId}}", "members", ":userId"]
+            },
+            "description": "Remove a member from household. ADMIN or OWNER required."
+          }
+        },
+        {
+          "name": "9. Update Member Role",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role\": \"ADMIN\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/households/{{householdId}}/members/:userId/role",
+              "host": ["{{base_url}}"],
+              "path": ["households", "{{householdId}}", "members", ":userId", "role"]
+            },
+            "description": "Change a member's role. OWNER only."
+          }
+        },
+        {
+          "name": "10. Leave Household",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/households/{{householdId}}/leave",
+              "host": ["{{base_url}}"],
+              "path": ["households", "{{householdId}}", "leave"]
+            },
+            "description": "Leave a household. OWNER cannot leave (must delete instead)."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Budget Management",
+      "description": "7 endpoints for managing budgets with real-time updates",
+      "item": [
+        {
+          "name": "1. Create Budget",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"householdId\": \"{{householdId}}\",\n  \"name\": \"Monthly Groceries\",\n  \"amount\": 500.00,\n  \"period\": \"MONTHLY\",\n  \"startDate\": \"2025-11-01T00:00:00Z\",\n  \"endDate\": \"2025-11-30T23:59:59Z\",\n  \"categoryId\": \"{{categoryId}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/budgets",
+              "host": ["{{base_url}}"],
+              "path": ["budgets"]
+            },
+            "description": "Create a new budget. Broadcasts budget:updated event with action:created."
+          }
+        },
+        {
+          "name": "2. List Budgets",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/budgets?householdId={{householdId}}&period=MONTHLY",
+              "host": ["{{base_url}}"],
+              "path": ["budgets"],
+              "query": [
+                {
+                  "key": "householdId",
+                  "value": "{{householdId}}"
+                },
+                {
+                  "key": "period",
+                  "value": "MONTHLY",
+                  "description": "Optional filter"
+                }
+              ]
+            },
+            "description": "List all budgets for a household with current progress."
+          }
+        },
+        {
+          "name": "3. Get Budget Details",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/budgets/{{budgetId}}",
+              "host": ["{{base_url}}"],
+              "path": ["budgets", "{{budgetId}}"]
+            },
+            "description": "Get detailed information about a specific budget including progress."
+          }
+        },
+        {
+          "name": "4. Update Budget",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated Budget Name\",\n  \"amount\": 600.00\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/budgets/{{budgetId}}",
+              "host": ["{{base_url}}"],
+              "path": ["budgets", "{{budgetId}}"]
+            },
+            "description": "Update budget details. Broadcasts budget:updated event with action:updated."
+          }
+        },
+        {
+          "name": "5. Delete Budget",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/budgets/{{budgetId}}",
+              "host": ["{{base_url}}"],
+              "path": ["budgets", "{{budgetId}}"]
+            },
+            "description": "Delete budget. Broadcasts budget:updated event with action:deleted."
+          }
+        },
+        {
+          "name": "6. Get Budget Progress",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/budgets/{{budgetId}}/progress",
+              "host": ["{{base_url}}"],
+              "path": ["budgets", "{{budgetId}}", "progress"]
+            },
+            "description": "Get detailed budget progress with category breakdown and recent expenses."
+          }
+        },
+        {
+          "name": "7. Rollover Budget",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/budgets/{{budgetId}}/rollover",
+              "host": ["{{base_url}}"],
+              "path": ["budgets", "{{budgetId}}", "rollover"]
+            },
+            "description": "Create a new budget for the next period based on current budget."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Expense Management",
+      "description": "7 endpoints for managing expenses with real-time updates",
+      "item": [
+        {
+          "name": "1. Create Expense",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"householdId\": \"{{householdId}}\",\n  \"amount\": 45.99,\n  \"type\": \"EXPENSE\",\n  \"description\": \"Grocery shopping at Whole Foods\",\n  \"date\": \"2025-11-29T14:30:00Z\",\n  \"budgetId\": \"{{budgetId}}\",\n  \"categoryId\": \"{{categoryId}}\",\n  \"tags\": [\"groceries\", \"weekly\"]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/expenses",
+              "host": ["{{base_url}}"],
+              "path": ["expenses"]
+            },
+            "description": "Create a new expense. Broadcasts expense:created event."
+          }
+        },
+        {
+          "name": "2. Bulk Create Expenses",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"expenses\": [\n    {\n      \"householdId\": \"{{householdId}}\",\n      \"amount\": 45.99,\n      \"description\": \"Grocery shopping\",\n      \"categoryId\": \"{{categoryId}}\",\n      \"tags\": [\"groceries\"]\n    },\n    {\n      \"householdId\": \"{{householdId}}\",\n      \"amount\": 20.00,\n      \"description\": \"Gas\",\n      \"tags\": [\"transportation\"]\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/expenses/bulk",
+              "host": ["{{base_url}}"],
+              "path": ["expenses", "bulk"]
+            },
+            "description": "Create multiple expenses (max 100). Broadcasts expense:created for each."
+          }
+        },
+        {
+          "name": "3. Get Expense Summary",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/expenses/summary?householdId={{householdId}}&startDate=2025-11-01T00:00:00Z&endDate=2025-11-30T23:59:59Z&groupBy=category",
+              "host": ["{{base_url}}"],
+              "path": ["expenses", "summary"],
+              "query": [
+                {
+                  "key": "householdId",
+                  "value": "{{householdId}}"
+                },
+                {
+                  "key": "startDate",
+                  "value": "2025-11-01T00:00:00Z"
+                },
+                {
+                  "key": "endDate",
+                  "value": "2025-11-30T23:59:59Z"
+                },
+                {
+                  "key": "groupBy",
+                  "value": "category",
+                  "description": "category, type, month, or budget"
+                }
+              ]
+            },
+            "description": "Get aggregated expense summary with grouping options."
+          }
+        },
+        {
+          "name": "4. List Expenses",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/expenses?householdId={{householdId}}&limit=50&offset=0",
+              "host": ["{{base_url}}"],
+              "path": ["expenses"],
+              "query": [
+                {
+                  "key": "householdId",
+                  "value": "{{householdId}}"
+                },
+                {
+                  "key": "budgetId",
+                  "value": "{{budgetId}}",
+                  "disabled": true
+                },
+                {
+                  "key": "categoryId",
+                  "value": "{{categoryId}}",
+                  "disabled": true
+                },
+                {
+                  "key": "type",
+                  "value": "EXPENSE",
+                  "disabled": true
+                },
+                {
+                  "key": "limit",
+                  "value": "50"
+                },
+                {
+                  "key": "offset",
+                  "value": "0"
+                }
+              ]
+            },
+            "description": "List expenses with filtering and pagination."
+          }
+        },
+        {
+          "name": "5. Get Expense by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/expenses/{{expenseId}}",
+              "host": ["{{base_url}}"],
+              "path": ["expenses", "{{expenseId}}"]
+            },
+            "description": "Get detailed information about a specific expense."
+          }
+        },
+        {
+          "name": "6. Update Expense",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 50.00,\n  \"description\": \"Updated description\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/expenses/{{expenseId}}",
+              "host": ["{{base_url}}"],
+              "path": ["expenses", "{{expenseId}}"]
+            },
+            "description": "Update expense. Broadcasts expense:updated event. Creator or ADMIN only."
+          }
+        },
+        {
+          "name": "7. Delete Expense",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/expenses/{{expenseId}}",
+              "host": ["{{base_url}}"],
+              "path": ["expenses", "{{expenseId}}"]
+            },
+            "description": "Delete expense. Broadcasts expense:deleted event. Creator or ADMIN only."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Category Management",
+      "description": "6 endpoints for managing categories with hierarchical support",
+      "item": [
+        {
+          "name": "1. Get Default Categories",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/categories/default",
+              "host": ["{{base_url}}"],
+              "path": ["categories", "default"]
+            },
+            "description": "Get list of default category templates for seeding."
+          }
+        },
+        {
+          "name": "2. Seed Default Categories",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"householdId\": \"{{householdId}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/categories/seed",
+              "host": ["{{base_url}}"],
+              "path": ["categories", "seed"]
+            },
+            "description": "Create default categories for a household. Can only seed once."
+          }
+        },
+        {
+          "name": "3. List Categories",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/categories?householdId={{householdId}}",
+              "host": ["{{base_url}}"],
+              "path": ["categories"],
+              "query": [
+                {
+                  "key": "householdId",
+                  "value": "{{householdId}}"
+                }
+              ]
+            },
+            "description": "List all categories for a household with usage statistics."
+          }
+        },
+        {
+          "name": "4. Create Category",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"householdId\": \"{{householdId}}\",\n  \"name\": \"Produce\",\n  \"icon\": \"🥬\",\n  \"color\": \"#10b981\",\n  \"parentId\": null\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/categories",
+              "host": ["{{base_url}}"],
+              "path": ["categories"]
+            },
+            "description": "Create a new category. Supports hierarchical categories via parentId."
+          }
+        },
+        {
+          "name": "5. Update Category",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated Category Name\",\n  \"icon\": \"🎯\",\n  \"color\": \"#ef4444\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/categories/{{categoryId}}",
+              "host": ["{{base_url}}"],
+              "path": ["categories", "{{categoryId}}"]
+            },
+            "description": "Update category details."
+          }
+        },
+        {
+          "name": "6. Delete Category",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/categories/{{categoryId}}?force=true",
+              "host": ["{{base_url}}"],
+              "path": ["categories", "{{categoryId}}"],
+              "query": [
+                {
+                  "key": "force",
+                  "value": "true",
+                  "description": "Set to true to delete even if in use"
+                }
+              ]
+            },
+            "description": "Delete category. Use force=true to delete even if in use."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Dashboard & Analytics",
+      "description": "3 endpoints for dashboard data with caching (5-min TTL)",
+      "item": [
+        {
+          "name": "1. Get Monthly Summary",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/dashboard/monthly?householdId={{householdId}}&month=2025-11",
+              "host": ["{{base_url}}"],
+              "path": ["dashboard", "monthly"],
+              "query": [
+                {
+                  "key": "householdId",
+                  "value": "{{householdId}}"
+                },
+                {
+                  "key": "month",
+                  "value": "2025-11",
+                  "description": "YYYY-MM format, defaults to current month"
+                }
+              ]
+            },
+            "description": "Get comprehensive monthly summary with trends and breakdowns. Cached 5 minutes."
+          }
+        },
+        {
+          "name": "2. Get Household Overview",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/dashboard/household/{{householdId}}",
+              "host": ["{{base_url}}"],
+              "path": ["dashboard", "household", "{{householdId}}"]
+            },
+            "description": "Get household overview with stats and recent activity. Cached 5 minutes."
+          }
+        },
+        {
+          "name": "3. Get Budget Health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/dashboard/budget-health?householdId={{householdId}}",
+              "host": ["{{base_url}}"],
+              "path": ["dashboard", "budget-health"],
+              "query": [
+                {
+                  "key": "householdId",
+                  "value": "{{householdId}}"
+                }
+              ]
+            },
+            "description": "Get budget health indicators with projections. Cached 5 minutes."
+          }
+        }
+      ]
+    }
+  ]
+}
