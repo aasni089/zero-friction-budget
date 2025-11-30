@@ -1,6 +1,7 @@
 const { PrismaClient } = require('@prisma/client');
 const { z } = require('zod');
 const logger = require('../config/logger');
+const { broadcastBudgetUpdated } = require('../services/realtime');
 
 const prisma = new PrismaClient();
 
@@ -169,6 +170,9 @@ exports.createBudget = async (req, res) => {
     });
 
     logger.info(`Budget created: ${budget.id} by user ${userId}`);
+
+    // Broadcast real-time event
+    await broadcastBudgetUpdated(budget.householdId, budget, 'created');
 
     res.status(201).json({
       success: true,
@@ -458,6 +462,9 @@ exports.updateBudget = async (req, res) => {
 
     logger.info(`Budget updated: ${id} by user ${userId}`);
 
+    // Broadcast real-time event
+    await broadcastBudgetUpdated(updatedBudget.householdId, updatedBudget, 'updated');
+
     res.json({
       success: true,
       data: updatedBudget,
@@ -526,6 +533,9 @@ exports.deleteBudget = async (req, res) => {
       });
     }
 
+    // Store householdId before deletion for real-time broadcast
+    const householdId = budget.householdId;
+
     // Unlink expenses (set budgetId to null) - handled by Prisma onDelete: SetNull
     // Delete budget
     await prisma.budget.delete({
@@ -533,6 +543,9 @@ exports.deleteBudget = async (req, res) => {
     });
 
     logger.info(`Budget deleted: ${id} by user ${userId}`);
+
+    // Broadcast real-time event
+    await broadcastBudgetUpdated(householdId, { id }, 'deleted');
 
     res.json({
       success: true,

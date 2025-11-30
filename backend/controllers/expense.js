@@ -1,6 +1,11 @@
 const { PrismaClient } = require('@prisma/client');
 const { z } = require('zod');
 const logger = require('../config/logger');
+const {
+  broadcastExpenseCreated,
+  broadcastExpenseUpdated,
+  broadcastExpenseDeleted,
+} = require('../services/realtime');
 
 const prisma = new PrismaClient();
 
@@ -38,25 +43,6 @@ const updateExpenseSchema = z.object({
 const bulkCreateExpenseSchema = z.object({
   expenses: z.array(createExpenseSchema).min(1).max(100),
 });
-
-// ============================================================================
-// HELPER FUNCTIONS
-// ============================================================================
-
-/**
- * Broadcast real-time event for expense changes
- * TODO: Implement in Task 2.6 (Real-time Features)
- */
-async function broadcastExpenseEvent(event, data) {
-  // Stub for real-time broadcasts
-  logger.debug(`[Real-time stub] ${event}:`, data);
-  // TODO: Implement Supabase real-time broadcast
-  // await supabase.channel(`household:${data.householdId}`).send({
-  //   type: 'broadcast',
-  //   event: event,
-  //   payload: data
-  // });
-}
 
 // ============================================================================
 // CONTROLLERS
@@ -130,10 +116,7 @@ exports.createExpense = async (req, res) => {
     logger.info(`Expense created: ${expense.id} by user ${userId}`);
 
     // Broadcast real-time event
-    await broadcastExpenseEvent('expense:created', {
-      householdId: expense.householdId,
-      expense,
-    });
+    await broadcastExpenseCreated(expense.householdId, expense);
 
     res.status(201).json({
       success: true,
@@ -435,10 +418,7 @@ exports.updateExpense = async (req, res) => {
     logger.info(`Expense updated: ${id} by user ${req.user.id}`);
 
     // Broadcast real-time event
-    await broadcastExpenseEvent('expense:updated', {
-      householdId: updatedExpense.householdId,
-      expense: updatedExpense,
-    });
+    await broadcastExpenseUpdated(updatedExpense.householdId, updatedExpense);
 
     res.json({
       success: true,
@@ -485,10 +465,7 @@ exports.deleteExpense = async (req, res) => {
     logger.info(`Expense deleted: ${id} by user ${req.user.id}`);
 
     // Broadcast real-time event
-    await broadcastExpenseEvent('expense:deleted', {
-      householdId: expense.householdId,
-      expenseId: id,
-    });
+    await broadcastExpenseDeleted(expense.householdId, id);
 
     res.json({
       success: true,
@@ -582,14 +559,9 @@ exports.bulkCreateExpenses = async (req, res) => {
 
     logger.info(`Bulk created ${expenses.length} expenses by user ${userId}`);
 
-    // Broadcast real-time events for each household
-    for (const householdId of householdIds) {
-      const householdExpenses = expenses.filter((e) => e.householdId === householdId);
-      await broadcastExpenseEvent('expenses:bulk_created', {
-        householdId,
-        expenses: householdExpenses,
-        count: householdExpenses.length,
-      });
+    // Broadcast real-time events for each created expense
+    for (const expense of expenses) {
+      await broadcastExpenseCreated(expense.householdId, expense);
     }
 
     res.status(201).json({
