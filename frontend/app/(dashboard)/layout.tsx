@@ -1,24 +1,23 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { Sidebar } from '@/components/layout/Sidebar';
-import { TopBar } from '@/components/layout/TopBar';
-import { Sheet, SheetContent } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
+import { Button } from '@/components/ui/button';
+import { Menu } from 'lucide-react';
 import { useAuthStore } from '@/lib/stores/auth';
 import { useUiStore } from '@/lib/stores/ui';
 import { getHouseholds } from '@/lib/api/household-client';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Button } from '@/components/ui/button';
 import { RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 
 export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const router = useRouter();
   // Note: checkAuth is now handled by AuthProvider at root level
   const { isAuthenticated, isLoading: authLoading } = useAuthStore();
   const {
@@ -91,14 +90,25 @@ export default function DashboardLayout({
       {/* Mobile Sidebar (Sheet/Drawer) */}
       <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
         <SheetContent side="left" className="p-0 w-64">
+          <VisuallyHidden>
+            <SheetTitle>Navigation Menu</SheetTitle>
+          </VisuallyHidden>
           <Sidebar />
         </SheetContent>
       </Sheet>
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0">
-        {/* Top Bar */}
-        <TopBar onMenuClick={() => setSidebarOpen(true)} />
+        {/* Mobile Menu Button */}
+        <div className="lg:hidden p-4 border-b border-gray-200 bg-white">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setSidebarOpen(true)}
+          >
+            <Menu className="h-5 w-5" />
+          </Button>
+        </div>
 
         {/* Page Content */}
         <main
@@ -109,7 +119,7 @@ export default function DashboardLayout({
         >
           {/* Show error if households failed to load */}
           {householdsError && (
-            <div className="p-4">
+            <div className="mb-4">
               <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg flex items-center justify-between">
                 <span>{householdsError}</span>
                 <Button
@@ -127,7 +137,7 @@ export default function DashboardLayout({
 
           {/* Show loading skeleton while fetching households */}
           {isLoadingHouseholds && (
-            <div className="p-6 space-y-4">
+            <div className="space-y-4">
               <Skeleton className="h-8 w-48" />
               <Skeleton className="h-64 w-full" />
             </div>
