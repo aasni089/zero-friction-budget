@@ -1,3 +1,7 @@
+'use client';
+
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -8,8 +12,21 @@ import {
   Lock,
   ArrowRight,
 } from 'lucide-react';
+import { useAuthStore } from '@/lib/stores/auth';
 
 export default function LandingPage() {
+  const router = useRouter();
+  const { isAuthenticated, isLoading } = useAuthStore();
+
+  // Redirect authenticated users to dashboard (client-side)
+  // This works in harmony with middleware
+  useEffect(() => {
+    if (!isLoading && isAuthenticated) {
+      router.push('/dashboard');
+    }
+  }, [isAuthenticated, isLoading, router]);
+
+  // Show landing page content (middleware may also redirect, but this provides smooth UX)
   return (
     <div className="min-h-screen bg-gradient-to-b from-white to-gray-50">
       {/* Navigation */}

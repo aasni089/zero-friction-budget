@@ -1,34 +1,36 @@
 'use client';
 
-import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useAuthStore } from '@/lib/stores/auth';
 
 export default function DashboardTestPage() {
   const router = useRouter();
-  const { user, logout, isLoading, checkAuth } = useAuthStore();
-
-  useEffect(() => {
-    checkAuth();
-  }, [checkAuth]);
+  // Note: Auth check is now handled by AuthProvider at root level
+  const { user, logout, isLoading } = useAuthStore();
 
   const handleLogout = async () => {
     await logout();
     router.push('/login');
   };
 
+  // Show loading skeleton while auth is being checked
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p>Loading...</p>
+      <div className="min-h-screen flex items-center justify-center bg-black">
+        <div className="space-y-4">
+          <Skeleton className="h-12 w-64 bg-gray-800" />
+          <Skeleton className="h-4 w-48 bg-gray-800" />
+        </div>
       </div>
     );
   }
 
+  // Middleware should handle unauthenticated users, but show a fallback just in case
   if (!user) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-black text-white">
         <p>Not authenticated. Redirecting...</p>
       </div>
     );
