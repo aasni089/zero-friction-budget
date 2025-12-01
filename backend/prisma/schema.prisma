@@ -42,6 +42,7 @@ model User {
   accounts              Account[]
   sessions              Session[]
   trustedDevices        TrustedDevice[]
+  revokedTokens         RevokedToken[]
   notificationPrefs     NotificationPreference?
   householdMemberships  HouseholdMember[]
   ownedHouseholds       Household[]  @relation("HouseholdOwner")
@@ -324,8 +325,12 @@ model VerificationToken {
 model RevokedToken {
   id        String   @id @default(cuid())
   token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   revokedAt DateTime @default(now())
   expiresAt DateTime
+
+  @@index([userId])
 }
 
 model TrustedDevice {

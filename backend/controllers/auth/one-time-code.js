@@ -14,7 +14,9 @@ const { sendVerificationCode: sendSMSCode } = require('../../utils/sms');
 exports.requestLoginCode = async (req, res) => {
   try {
     const { email, name } = req.body;
-    
+
+    console.log('🔐 Login code request received for:', email, 'Name:', name || 'Not provided');
+
     if (!email) {
       return res.status(400).json({ error: "Email is required" });
     }
@@ -23,21 +25,22 @@ exports.requestLoginCode = async (req, res) => {
     let user = await prisma.user.findUnique({
       where: { email }
     });
-    
+
     // Determine if this is a registration attempt (name provided and user doesn't exist)
     const isRegistration = !user && !!name;
-    
+
     // If it's a registration attempt, create a new user
     if (isRegistration) {
+      console.log(`✨ Creating new user account for: ${email}`);
       user = await prisma.user.create({
         data: {
           email,
-          name,
-          preferredAuthMethod: 'email',
-          preferredLoginMethod: 'email'
+          name
+          // preferredAuthMethod defaults to OTC in schema
+          // preferredLoginMethod can be set later if needed
         }
       });
-      
+
       // Send welcome email asynchronously with a delay of 2 minutes
       setTimeout(() => {
         sendWelcomeEmail(email, name).catch(err => {
@@ -45,10 +48,13 @@ exports.requestLoginCode = async (req, res) => {
         });
       }, 2 * 60 * 1000);
     }
-    
-    // If user doesn't exist and it's not a registration attempt, don't reveal this
+
+    // Security: Don't reveal if user exists or not (prevents account enumeration)
+    // If user doesn't exist and it's not a registration attempt, still return success
+    // but don't actually send an email (similar to Wealthsimple/Robinhood)
     if (!user) {
-      return res.status(200).json({ 
+      console.log(`⚠️ Login attempt for non-existent user: ${email}, returning generic success`);
+      return res.status(200).json({
         success: true,
         message: "If an account with this email exists, a login code has been sent"
       });
@@ -70,20 +76,34 @@ exports.requestLoginCode = async (req, res) => {
     
     // Determine user's preferred communication method
     const notificationMethod = user.preferredLoginMethod || 'email';
-    
+
     // Send the login code via the preferred method
+    console.log(`📧 Attempting to send login code to ${email} via ${notificationMethod}`);
+    let emailResult;
     if (notificationMethod === 'sms' && user.phoneNumber) {
-      await sendSMSCode(user.phoneNumber, code);
+      emailResult = await sendSMSCode(user.phoneNumber, code);
     } else {
       // Default to email
-      await sendLoginCode(email, code, user.name || '');
+      emailResult = await sendLoginCode(email, code, user.name || '');
     }
-    
+
+    console.log('📧 Email send result:', emailResult);
+
+    // Check if email sending failed
+    if (!emailResult || !emailResult.success) {
+      console.error('❌ Failed to send login code:', emailResult?.error);
+      return res.status(500).json({
+        error: 'Failed to send login code. Please try again.'
+      });
+    }
+
+    console.log('✅ Login code sent successfully:', emailResult.messageId);
+
     return res.status(200).json({
       success: true,
       isRegistration,
-      message: isRegistration 
-        ? "Account created successfully. Please verify with the code sent to your email." 
+      message: isRegistration
+        ? "Account created successfully. Please verify with the code sent to your email."
         : "If an account with this email exists, a login code has been sent",
       // Include method only in development for easier testing
       ...(process.env.NODE_ENV === 'development' && {
@@ -129,7 +149,7 @@ exports.verifyLoginCode = async (req, res) => {
     }
     
     // Track verification attempts
-    const currentAttempts = user.loginCodeVerificationAttempts || 0;
+    const currentAttempts = user.verificationAttempts || 0;
     const MAX_LOGIN_ATTEMPTS = 3;
     
     // Verify the code
@@ -142,10 +162,10 @@ exports.verifyLoginCode = async (req, res) => {
         // Max attempts reached, clear login code
         await prisma.user.update({
           where: { id: user.id },
-          data: { 
+          data: {
             loginCode: null,
             loginCodeExpiresAt: null,
-            loginCodeVerificationAttempts: 0
+            verificationAttempts: 0
           }
         });
         
@@ -158,7 +178,7 @@ exports.verifyLoginCode = async (req, res) => {
       // Update attempts count
       await prisma.user.update({
         where: { id: user.id },
-        data: { loginCodeVerificationAttempts: newAttemptCount }
+        data: { verificationAttempts: newAttemptCount }
       });
       
       return res.status(400).json({ 
@@ -172,10 +192,10 @@ exports.verifyLoginCode = async (req, res) => {
       // Clear the login code and reset attempts
       await tx.user.update({
         where: { id: user.id },
-        data: { 
+        data: {
           loginCode: null,
           loginCodeExpiresAt: null,
-          loginCodeVerificationAttempts: 0,
+          verificationAttempts: 0,
           emailVerified: user.emailVerified || new Date() // Mark email as verified if not already
         }
       });
@@ -331,15 +351,29 @@ exports.resendLoginCode = async (req, res) => {
     
     // Determine user's preferred communication method
     const notificationMethod = user.preferredLoginMethod || 'email';
-    
+
     // Send the login code via the preferred method
+    console.log(`📧 [RESEND] Attempting to send login code to ${email} via ${notificationMethod}`);
+    let emailResult;
     if (notificationMethod === 'sms' && user.phoneNumber) {
-      await sendSMSCode(user.phoneNumber, code);
+      emailResult = await sendSMSCode(user.phoneNumber, code);
     } else {
       // Default to email
-      await sendLoginCode(email, code, user.name || '');
+      emailResult = await sendLoginCode(email, code, user.name || '');
     }
-    
+
+    console.log('📧 [RESEND] Email send result:', emailResult);
+
+    // Check if email sending failed
+    if (!emailResult || !emailResult.success) {
+      console.error('❌ [RESEND] Failed to send login code:', emailResult?.error);
+      return res.status(500).json({
+        error: 'Failed to send login code. Please try again.'
+      });
+    }
+
+    console.log('✅ [RESEND] Login code sent successfully:', emailResult.messageId);
+
     return res.status(200).json({
       success: true,
       message: "If an account with this email exists, a new login code has been sent",

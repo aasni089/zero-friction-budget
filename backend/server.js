@@ -71,7 +71,10 @@ const corsOptions = {
 const app = express();
 
 // Basic middleware
-app.use(helmet()); // Set security headers
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" },
+  crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" }
+})); // Set security headers
 app.use(cookieParser());
 app.use(cors(corsOptions));
 // Middleware to set CORS for all responses

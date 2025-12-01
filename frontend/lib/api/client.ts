@@ -48,25 +48,27 @@ export async function apiClient<T = any>(
       headers,
     });
 
-    const data: ApiResponse<T> = await response.json();
+    // Handle non-JSON responses
+    const contentType = response.headers.get('content-type');
+    if (!contentType || !contentType.includes('application/json')) {
+      throw new ApiError(
+        'Server returned non-JSON response',
+        response.status
+      );
+    }
+
+    const data = await response.json();
 
     if (!response.ok) {
       throw new ApiError(
-        data.error || 'An error occurred',
+        data.error || data.message || 'An error occurred',
         response.status,
         data
       );
     }
 
-    if (!data.success) {
-      throw new ApiError(
-        data.error || 'Request failed',
-        response.status,
-        data
-      );
-    }
-
-    return data.data as T;
+    // Backend returns data directly, not wrapped in { success, data }
+    return data as T;
   } catch (error) {
     if (error instanceof ApiError) {
       throw error;

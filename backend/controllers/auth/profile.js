@@ -16,7 +16,7 @@ exports.getProfile = async (req, res) => {
         name: true,
         email: true,
         image: true,
-        phoneNumber: true,
+        phone: true,
         preferredAuthMethod: true,
         preferredLoginMethod: true,
         allowAccountLinking: true,
@@ -48,7 +48,7 @@ exports.getProfile = async (req, res) => {
         name: user.name,
         email: user.email,
         image: user.image,
-        phoneNumber: user.phoneNumber,
+        phoneNumber: user.phone,
         preferredAuthMethod: user.preferredAuthMethod,
         preferredLoginMethod: user.preferredLoginMethod,
         allowAccountLinking: user.allowAccountLinking,
@@ -104,7 +104,7 @@ exports.updateAccountSettings = async (req, res) => {
     const updateData = {};
     if (name) updateData.name = name;
     if (preferredAuthMethod) updateData.preferredAuthMethod = preferredAuthMethod;
-    if (phoneNumber !== undefined) updateData.phoneNumber = phoneNumber;
+    if (phoneNumber !== undefined) updateData.phone = phoneNumber;
     
     const user = await prisma.user.update({
       where: { id: userId },
@@ -113,16 +113,20 @@ exports.updateAccountSettings = async (req, res) => {
         id: true,
         name: true,
         email: true,
-        phoneNumber: true,
+        phone: true,
         preferredAuthMethod: true,
         preferredLoginMethod: true,
         allowAccountLinking: true
       }
     });
-    
+
     return res.status(200).json({
       success: true,
-      user
+      user: {
+        ...user,
+        phoneNumber: user.phone,
+        phone: undefined
+      }
     });
   } catch (error) {
     console.error('Error updating account settings:', error);
@@ -165,7 +169,7 @@ exports.updateNotificationPreferences = async (req, res) => {
     const updateData = {};
     if (preferredLoginMethod) updateData.preferredLoginMethod = preferredLoginMethod;
     if (twoFAMethod) updateData.twoFAMethod = twoFAMethod;
-    if (phoneNumber !== undefined) updateData.phoneNumber = phoneNumber;
+    if (phoneNumber !== undefined) updateData.phone = phoneNumber;
     
     const user = await prisma.user.update({
       where: { id: userId },
@@ -173,15 +177,19 @@ exports.updateNotificationPreferences = async (req, res) => {
       select: {
         id: true,
         email: true,
-        phoneNumber: true,
+        phone: true,
         preferredLoginMethod: true,
         twoFAMethod: true
       }
     });
-    
+
     return res.status(200).json({
       success: true,
-      user
+      user: {
+        ...user,
+        phoneNumber: user.phone,
+        phone: undefined
+      }
     });
   } catch (error) {
     console.error('Error updating notification preferences:', error);

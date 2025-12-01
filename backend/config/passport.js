@@ -44,16 +44,83 @@ module.exports = function configurePassport() {
           
           // Check if user already exists
           let user = await prisma.user.findUnique({
-            where: { email }
+            where: { email },
+            include: {
+              accounts: true
+            }
           });
-          
-          // Handle user creation or update (your existing code)
-          // ...
-  
+
+          let isNewUser = false;
+
+          if (!user) {
+            // Create new user
+            user = await prisma.user.create({
+              data: {
+                email,
+                name: profile.displayName || profile.name?.givenName || email.split('@')[0],
+                image: profile.photos?.[0]?.value,
+                emailVerified: true,
+                accounts: {
+                  create: {
+                    provider: 'google',
+                    providerAccountId: profile.id,
+                    accessToken,
+                    refreshToken,
+                    expiresAt: new Date(Date.now() + 3600000) // 1 hour from now
+                  }
+                }
+              },
+              include: {
+                accounts: true
+              }
+            });
+            isNewUser = true;
+          } else {
+            // User exists, check if Google account is linked
+            const googleAccount = user.accounts?.find(acc => acc.provider === 'google');
+
+            if (!googleAccount) {
+              // Link Google account to existing user
+              await prisma.account.create({
+                data: {
+                  userId: user.id,
+                  provider: 'google',
+                  providerAccountId: profile.id,
+                  accessToken,
+                  refreshToken,
+                  expiresAt: new Date(Date.now() + 3600000)
+                }
+              });
+            } else {
+              // Update existing Google account tokens
+              await prisma.account.update({
+                where: { id: googleAccount.id },
+                data: {
+                  accessToken,
+                  refreshToken,
+                  expiresAt: new Date(Date.now() + 3600000)
+                }
+              });
+            }
+
+            // Update user image if not set
+            if (!user.image && profile.photos?.[0]?.value) {
+              user = await prisma.user.update({
+                where: { id: user.id },
+                data: { image: profile.photos[0].value }
+              });
+            }
+          }
+
           // Fetch the updated user
           const updatedUser = await prisma.user.findUnique({
             where: { id: user.id }
           });
+
+          // Mark as new user if applicable
+          if (isNewUser) {
+            updatedUser.isNewUser = true;
+          }
           
           // Check if 2FA is enabled for this user
           if (updatedUser.twoFAEnabled) {
@@ -91,9 +158,9 @@ module.exports = function configurePassport() {
             // Update user with code
             await prisma.user.update({
               where: { id: updatedUser.id },
-              data: { 
+              data: {
                 twoFASecret: encryptedCode,
-                twoFAVerificationAttempts: 0  // Reset attempts counter
+                verificationAttempts: 0  // Reset attempts counter
               }
             });
             
