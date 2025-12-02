@@ -195,7 +195,7 @@ export function ExpenseInput() {
           </div>
 
           {/* Main Amount Input - ChatGPT Style */}
-          <div className="mb-8">
+          <div className="mb-4">
             <div className="relative">
               <span className="absolute left-4 top-1/2 -translate-y-1/2 text-2xl font-semibold text-gray-500 pointer-events-none">
                 $

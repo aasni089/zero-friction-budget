@@ -103,7 +103,7 @@ export function ExpenseDetailsDialog({
         }
 
         onSubmit({
-            budgetId: budgetId || undefined,
+            budgetId: budgetId && budgetId !== 'none' ? budgetId : undefined,
             categoryId,
             description: description || undefined,
             date,
@@ -131,7 +131,7 @@ export function ExpenseDetailsDialog({
                                 <SelectValue placeholder="Select budget (optional)" />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="">No budget</SelectItem>
+                                <SelectItem value="none">No budget</SelectItem>
                                 {budgets.map((budget) => (
                                     <SelectItem key={budget.id} value={budget.id}>
                                         {budget.name} - ${budget.amount.toFixed(2)}/{budget.period.toLowerCase()}
