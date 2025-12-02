@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useUiStore } from '@/lib/stores/ui';
 import { getCategories, type Category } from '@/lib/api/category-client';
 import { createExpense, getExpenses, type Expense } from '@/lib/api/expense-client';
+import { useRealtime } from '@/hooks/useRealtime';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -102,6 +103,19 @@ export function ExpenseInput() {
   useEffect(() => {
     fetchRecentExpenses();
   }, [fetchRecentExpenses]);
+
+  // Subscribe to real-time expense updates
+  useRealtime({
+    onExpenseCreated: (expense) => {
+      // Add new expense to the list if it's not already there (avoid duplicates from own submissions)
+      setRecentExpenses((prev) => {
+        if (prev.find(e => e.id === expense.id)) {
+          return prev;
+        }
+        return [expense, ...prev.slice(0, 9)];
+      });
+    },
+  });
 
   // Auto-focus amount input
   useEffect(() => {

@@ -4,10 +4,13 @@ import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useUiStore } from '@/lib/stores/ui';
 import { getBudgets, type Budget } from '@/lib/api/budget-client';
+import { useRealtime } from '@/hooks/useRealtime';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Plus, ArrowLeft } from 'lucide-react';
+import { CreateBudgetDialog } from '@/components/budget/CreateBudgetDialog';
+import { BudgetCard } from '@/components/budget/BudgetCard';
 
 export default function BudgetsPage() {
   const router = useRouter();
@@ -15,6 +18,7 @@ export default function BudgetsPage() {
   const { currentHouseholdId, budgets, budgetsLoading, setBudgets, setBudgetsLoading } = useUiStore();
 
   const [error, setError] = useState<string | null>(null);
+  const [isCreateBudgetOpen, setIsCreateBudgetOpen] = useState(false);
 
   // Check if we should auto-open create modal (from ?action=create)
   const shouldAutoCreate = searchParams.get('action') === 'create';
@@ -49,11 +53,25 @@ export default function BudgetsPage() {
     fetchBudgets();
   }, [currentHouseholdId, budgets.length, setBudgets, setBudgetsLoading]);
 
-  // Show auto-create hint if requested
+  // Subscribe to real-time budget updates
+  useRealtime({
+    onBudgetUpdated: (budget, action) => {
+      if (action === 'created') {
+        setBudgets([...budgets, budget]);
+      } else if (action === 'updated') {
+        setBudgets(budgets.map(b => b.id === budget.id ? budget : b));
+      } else if (action === 'deleted') {
+        setBudgets(budgets.filter(b => b.id !== budget.id));
+      }
+    },
+  });
+
+  // Auto-open create modal if requested
   useEffect(() => {
     if (shouldAutoCreate && !budgetsLoading) {
-      // This will be replaced with modal open in Task 3.5
-      console.log('Auto-open create budget modal (to be implemented in Task 3.5)');
+      setIsCreateBudgetOpen(true);
+      // Optional: Clear the query param so it doesn't reopen on refresh?
+      // For now, keeping it simple.
     }
   }, [shouldAutoCreate, budgetsLoading]);
 
@@ -96,10 +114,7 @@ export default function BudgetsPage() {
             <h1 className="text-3xl font-bold text-gray-900">Budgets</h1>
           </div>
           <Button
-            onClick={() => {
-              // This will open create modal in Task 3.5
-              console.log('Open create budget modal (to be implemented in Task 3.5)');
-            }}
+            onClick={() => setIsCreateBudgetOpen(true)}
             className="bg-blue-600 hover:bg-blue-700 text-white"
           >
             <Plus className="h-5 w-5 mr-2" />
@@ -107,15 +122,7 @@ export default function BudgetsPage() {
           </Button>
         </div>
 
-        {/* Auto-create hint */}
-        {shouldAutoCreate && budgets.length === 0 && (
-          <Card className="p-6 mb-6 bg-blue-50 border-blue-200">
-            <p className="text-blue-900">
-              <strong>Note:</strong> Budget creation modal will be implemented in Task 3.5.
-              Click "Create Budget" button above to prepare for the modal.
-            </p>
-          </Card>
-        )}
+
 
         {/* Budgets List */}
         {budgets.length === 0 ? (
@@ -128,25 +135,20 @@ export default function BudgetsPage() {
         ) : (
           <div className="space-y-4">
             {budgets.map((budget) => (
-              <Card key={budget.id} className="p-6 hover:shadow-md transition-shadow">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-xl font-semibold text-gray-900">
-                      {budget.name}
-                    </h3>
-                    <p className="text-sm text-gray-600 mt-1">
-                      {budget.period} • ${budget.amount.toFixed(2)}
-                    </p>
-                  </div>
-                  <Button variant="outline" size="sm">
-                    View Details
-                  </Button>
-                </div>
-              </Card>
+              <BudgetCard key={budget.id} budget={budget} />
             ))}
           </div>
         )}
       </div>
+
+      <CreateBudgetDialog
+        open={isCreateBudgetOpen}
+        onOpenChange={setIsCreateBudgetOpen}
+        onSuccess={() => {
+          // If we came from empty state with ?action=create, 
+          // we might want to clean up the URL, but it's not strictly necessary.
+        }}
+      />
     </div>
   );
 }
