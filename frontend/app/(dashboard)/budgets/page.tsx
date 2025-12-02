@@ -64,6 +64,17 @@ export default function BudgetsPage() {
         setBudgets(budgets.filter(b => b.id !== budget.id));
       }
     },
+    // Refetch budgets when an expense is created to update progress
+    onExpenseCreated: async () => {
+      if (currentHouseholdId) {
+        try {
+          const response = await getBudgets(currentHouseholdId);
+          setBudgets(response || []);
+        } catch (error) {
+          console.error('Failed to refresh budgets:', error);
+        }
+      }
+    },
   });
 
   // Auto-open create modal if requested

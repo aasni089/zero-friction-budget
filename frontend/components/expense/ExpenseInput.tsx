@@ -195,7 +195,7 @@ export function ExpenseInput() {
           </div>
 
           {/* Main Amount Input - ChatGPT Style */}
-          <div className="mb-4">
+          <div>
             <div className="relative">
               <span className="absolute left-4 top-1/2 -translate-y-1/2 text-2xl font-semibold text-gray-500 pointer-events-none">
                 $
@@ -229,7 +229,7 @@ export function ExpenseInput() {
 
 
       {/* Recent Expenses - Below centered input */}
-      <div className="w-full max-w-2xl mx-auto px-4 pb-8">
+      <div className="w-full max-w-2xl mx-auto px-4 py-6">
         <div className="space-y-4">
           <h3 className="text-lg font-semibold text-gray-900">Recent Expenses</h3>
           {isLoadingExpenses ? (
