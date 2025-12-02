@@ -7,8 +7,8 @@ export default function DashboardRedirect() {
   const router = useRouter();
 
   useEffect(() => {
-    // Redirect to expense page
-    router.replace('/expense');
+    // Redirect to track page
+    router.replace('/track');
   }, [router]);
 
   return null;
