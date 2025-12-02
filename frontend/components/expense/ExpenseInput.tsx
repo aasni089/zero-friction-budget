@@ -280,6 +280,12 @@ export function ExpenseInput({ primaryBudgetId }: ExpenseInputProps = {}) {
                             </p>
                             <p className="text-xs text-muted-foreground">
                               {expense.category?.name || 'Uncategorized'}
+                              {expense.budget && (
+                                <>
+                                  {' • '}
+                                  {expense.budget.name}
+                                </>
+                              )}
                             </p>
                           </div>
                         </div>

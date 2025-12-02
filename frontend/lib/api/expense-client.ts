@@ -19,6 +19,11 @@ export interface Expense {
     icon?: string;
     color?: string;
   };
+  budget?: {
+    id: string;
+    name: string;
+    amount: number;
+  };
   user?: {
     id: string;
     name: string;

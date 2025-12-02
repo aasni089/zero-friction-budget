@@ -58,6 +58,7 @@ export function Sidebar({ className }: SidebarProps) {
     currentHouseholdId,
     setCurrentHouseholdId,
     households,
+    householdsLoading,
     getCurrentHousehold,
   } = useUiStore();
 
@@ -124,7 +125,7 @@ export function Sidebar({ className }: SidebarProps) {
         </div>
 
         {/* Household Selector / Create Button */}
-        {!sidebarCollapsed && households.length > 0 && (
+        {!sidebarCollapsed && !householdsLoading && households.length > 0 && (
           <div className="p-4 border-b border-sidebar-border">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -174,7 +175,7 @@ export function Sidebar({ className }: SidebarProps) {
         )}
 
         {/* No Household - Create Button */}
-        {!sidebarCollapsed && households.length === 0 && (
+        {!sidebarCollapsed && !householdsLoading && households.length === 0 && (
           <div className="p-4 border-b border-sidebar-border">
             <Button
               onClick={handleCreateHousehold}
@@ -188,7 +189,7 @@ export function Sidebar({ className }: SidebarProps) {
         )}
 
         {/* Collapsed household indicator */}
-        {sidebarCollapsed && (
+        {sidebarCollapsed && !householdsLoading && (
           <div className="px-4 py-2 border-b border-sidebar-border flex justify-center">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>

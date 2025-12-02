@@ -114,7 +114,8 @@ export default function ExpensePage() {
   }
 
   // Check 3: No budgets exist for the household
-  if (budgets.length === 0) {
+  // Don't show empty state while budgets are loading
+  if (!budgetsLoading && budgets.length === 0) {
     return <EmptyState type="budget" />;
   }
 

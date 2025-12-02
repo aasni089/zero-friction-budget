@@ -25,9 +25,10 @@ export default function DashboardLayout({
     sidebarOpen,
     setSidebarOpen,
     setHouseholds,
+    setHouseholdsLoading,
+    householdsLoading,
   } = useUiStore();
 
-  const [isLoadingHouseholds, setIsLoadingHouseholds] = useState(false);
   const [householdsError, setHouseholdsError] = useState<string | null>(null);
   const [hasFetchedHouseholds, setHasFetchedHouseholds] = useState(false);
 
@@ -37,7 +38,7 @@ export default function DashboardLayout({
       if (!isAuthenticated || hasFetchedHouseholds || authLoading) return;
 
       try {
-        setIsLoadingHouseholds(true);
+        setHouseholdsLoading(true);
         setHouseholdsError(null);
         const response = await getHouseholds();
         setHouseholds(response || []);
@@ -48,7 +49,7 @@ export default function DashboardLayout({
           error?.message || 'Failed to load households. Please try again.'
         );
       } finally {
-        setIsLoadingHouseholds(false);
+        setHouseholdsLoading(false);
       }
     };
 
@@ -57,9 +58,9 @@ export default function DashboardLayout({
       fetchHouseholds();
     } else if (!authLoading && !isAuthenticated) {
       // Not authenticated, no need to show households loading
-      setIsLoadingHouseholds(false);
+      setHouseholdsLoading(false);
     }
-  }, [isAuthenticated, authLoading, hasFetchedHouseholds, setHouseholds]);
+  }, [isAuthenticated, authLoading, hasFetchedHouseholds, setHouseholds, setHouseholdsLoading]);
 
   // Retry handler for household fetch errors
   const retryFetchHouseholds = async () => {
@@ -136,7 +137,7 @@ export default function DashboardLayout({
           )}
 
           {/* Show loading skeleton while fetching households */}
-          {isLoadingHouseholds && (
+          {householdsLoading && (
             <div className="space-y-4">
               <Skeleton className="h-8 w-48" />
               <Skeleton className="h-64 w-full" />
@@ -144,7 +145,7 @@ export default function DashboardLayout({
           )}
 
           {/* Render children once households are loaded */}
-          {!isLoadingHouseholds && children}
+          {!householdsLoading && children}
         </main>
       </div>
     </div>

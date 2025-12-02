@@ -44,13 +44,6 @@ export default function BudgetsPage() {
         return;
       }
 
-      // Only fetch if we don't have budgets in store yet
-      // This prevents duplicate fetches when navigating from expense page
-      if (budgets.length > 0) {
-        setBudgetsLoading(false);
-        return;
-      }
-
       try {
         setBudgetsLoading(true);
         setError(null);
@@ -65,7 +58,7 @@ export default function BudgetsPage() {
     };
 
     fetchBudgets();
-  }, [currentHouseholdId, budgets.length, setBudgets, setBudgetsLoading]);
+  }, [currentHouseholdId, setBudgets, setBudgetsLoading]);
 
   // Subscribe to real-time budget updates
   useRealtime({
