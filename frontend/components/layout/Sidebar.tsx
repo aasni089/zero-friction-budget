@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
@@ -12,6 +13,7 @@ import {
   User,
   LogOut,
   Plus,
+  BarChart3,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -33,9 +35,11 @@ import { useUiStore } from '@/lib/stores/ui';
 import { useAuthStore } from '@/lib/stores/auth';
 import { cn } from '@/lib/utils';
 import type { Household } from '@/lib/api/household-client';
+import { CreateHouseholdDialog } from '@/components/household/CreateHouseholdDialog';
 
 const navigation = [
-  { name: 'Dashboard', href: '/dashboard', icon: Home },
+  { name: 'Expense', href: '/expense', icon: Home },
+  { name: 'Track', href: '/track', icon: BarChart3 },
   { name: 'Budgets', href: '/budgets', icon: Wallet },
 ];
 
@@ -56,6 +60,8 @@ export function Sidebar({ className }: SidebarProps) {
     households,
     getCurrentHousehold,
   } = useUiStore();
+
+  const [isCreateHouseholdOpen, setIsCreateHouseholdOpen] = useState(false);
 
   const currentHousehold = getCurrentHousehold();
 
@@ -92,10 +98,10 @@ export function Sidebar({ className }: SidebarProps) {
     router.push('/settings');
   };
 
-  // Navigate to create household
+  // Open create household dialog
   const handleCreateHousehold = () => {
     setSidebarOpen(false);
-    router.push('/households/create');
+    setIsCreateHouseholdOpen(true);
   };
 
   return (
@@ -412,6 +418,12 @@ export function Sidebar({ className }: SidebarProps) {
           )}
         </div>
       </aside>
+
+      {/* Create Household Dialog */}
+      <CreateHouseholdDialog
+        open={isCreateHouseholdOpen}
+        onOpenChange={setIsCreateHouseholdOpen}
+      />
     </TooltipProvider>
   );
 }

@@ -43,7 +43,7 @@ export default function CallbackPage() {
     // Set the token and let the auth check handle the rest
     useAuthStore.getState().setToken(token);
     useAuthStore.getState().checkAuth().then(() => {
-      router.push('/dashboard');
+      router.push('/expense');
     });
   }, [searchParams, router, login, setTempToken, setRequiresTwoFactor]);
 

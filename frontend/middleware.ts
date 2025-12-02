@@ -23,9 +23,9 @@ export function middleware(request: NextRequest) {
 
   // Protected routes that require authentication
   const protectedRoutes = [
-    '/dashboard',
+    '/expense',
+    '/track',
     '/budgets',
-    '/expenses',
     '/settings',
   ];
 
@@ -41,9 +41,14 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // If authenticated and trying to access auth pages, redirect to dashboard
+  // If authenticated and trying to access auth pages or landing page, redirect to expense page
   if (token && (pathname === '/login' || pathname === '/')) {
-    return NextResponse.redirect(new URL('/dashboard', request.url));
+    return NextResponse.redirect(new URL('/expense', request.url));
+  }
+
+  // Redirect /dashboard to /expense for backwards compatibility
+  if (pathname === '/dashboard') {
+    return NextResponse.redirect(new URL('/expense', request.url));
   }
 
   return NextResponse.next();

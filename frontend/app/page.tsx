@@ -18,13 +18,8 @@ export default function LandingPage() {
   const router = useRouter();
   const { isAuthenticated, isLoading } = useAuthStore();
 
-  // Redirect authenticated users to dashboard (client-side)
-  // This works in harmony with middleware
-  useEffect(() => {
-    if (!isLoading && isAuthenticated) {
-      router.push('/dashboard');
-    }
-  }, [isAuthenticated, isLoading, router]);
+  // Landing page - don't redirect authenticated users
+  // They should manually navigate to the app
 
   // Show landing page content (middleware may also redirect, but this provides smooth UX)
   return (

@@ -40,7 +40,7 @@ export default function DashboardLayout({
         setIsLoadingHouseholds(true);
         setHouseholdsError(null);
         const response = await getHouseholds();
-        setHouseholds(response.households || []);
+        setHouseholds(response || []);
         setHasFetchedHouseholds(true);
       } catch (error: any) {
         console.error('Failed to fetch households:', error);

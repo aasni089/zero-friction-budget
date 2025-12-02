@@ -44,7 +44,7 @@ export default function Verify2FAPage() {
       if (response.token && response.user) {
         // 2FA verification successful
         login(response.user, response.token);
-        router.push('/dashboard');
+        router.push('/expense');
       }
     } catch (err: any) {
       setError(err.message || 'Invalid verification code');

@@ -63,17 +63,17 @@ export interface UpdateMemberRoleData {
 
 // List all households for the current user
 export async function getHouseholds() {
-  return api.get<{ households: Household[] }>('/households');
+  return api.get<Household[]>('/households');
 }
 
 // Get household details
 export async function getHousehold(householdId: string) {
-  return api.get<{ household: Household }>(`/households/${householdId}`);
+  return api.get<Household>(`/households/${householdId}`);
 }
 
 // Create a new household
 export async function createHousehold(data: CreateHouseholdData) {
-  return api.post<{ household: Household }>('/households', data);
+  return api.post<Household>('/households', data);
 }
 
 // Update household settings
@@ -81,7 +81,7 @@ export async function updateHousehold(
   householdId: string,
   data: UpdateHouseholdData
 ) {
-  return api.patch<{ household: Household }>(
+  return api.patch<Household>(
     `/households/${householdId}`,
     data
   );
@@ -89,7 +89,7 @@ export async function updateHousehold(
 
 // Delete household (owner only)
 export async function deleteHousehold(householdId: string) {
-  return api.delete<{ success: boolean; message: string }>(
+  return api.delete<{ message: string }>(
     `/households/${householdId}`
   );
 }
@@ -103,7 +103,7 @@ export async function inviteMember(
   householdId: string,
   data: InviteMemberData
 ) {
-  return api.post<{ success: boolean; message: string; invitationToken?: string }>(
+  return api.post<{ message: string; email: string }>(
     `/households/${householdId}/invite`,
     data
   );
@@ -111,7 +111,7 @@ export async function inviteMember(
 
 // Accept household invitation
 export async function joinHousehold(data: JoinHouseholdData) {
-  return api.post<{ success: boolean; message: string; household: Household }>(
+  return api.post<HouseholdMember>(
     `/households/${data.householdId}/join`,
     { token: data.token }
   );
@@ -119,7 +119,7 @@ export async function joinHousehold(data: JoinHouseholdData) {
 
 // Remove member from household
 export async function removeMember(householdId: string, userId: string) {
-  return api.delete<{ success: boolean; message: string }>(
+  return api.delete<{ message: string }>(
     `/households/${householdId}/members/${userId}`
   );
 }
@@ -130,7 +130,7 @@ export async function updateMemberRole(
   userId: string,
   data: UpdateMemberRoleData
 ) {
-  return api.patch<{ success: boolean; message: string; member: HouseholdMember }>(
+  return api.patch<HouseholdMember>(
     `/households/${householdId}/members/${userId}/role`,
     data
   );

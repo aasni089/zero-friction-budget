@@ -137,9 +137,9 @@ async function executeRequestWithRetry<T>(
       const apiError = error instanceof ApiError
         ? error
         : new ApiError(
-            error instanceof Error ? error.message : 'Network error',
-            0
-          );
+          error instanceof Error ? error.message : 'Network error',
+          0
+        );
 
       lastError = apiError;
 
@@ -207,7 +207,13 @@ async function executeSingleRequest<T>(
       );
     }
 
-    // Backend returns data directly, not wrapped in { success, data }
+    // Backend usually returns data wrapped in { success: true, data: ... }
+    // But sometimes flat objects (Auth).
+    // If it has 'data' property and 'success' is true, return the inner data.
+    if (data && typeof data === 'object' && 'success' in data && 'data' in data && data.success === true) {
+      return data.data as T;
+    }
+
     return data as T;
   } catch (error) {
     if (error instanceof ApiError) {

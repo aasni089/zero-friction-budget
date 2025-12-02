@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { Menu, LogOut, User, Settings } from 'lucide-react';
+import { Menu, LogOut, User, Settings, Plus } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import {
@@ -71,8 +71,27 @@ export function TopBar({ onMenuClick }: TopBarProps) {
         </div>
       </div>
 
-      {/* Right side - User menu */}
-      <div className="flex items-center space-x-4">
+      {/* Right side - Quick actions + User menu */}
+      <div className="flex items-center space-x-3">
+        {/* Add Expense Button - Desktop */}
+        <Button
+          onClick={() => router.push('/expense')}
+          className="hidden sm:flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white"
+          size="sm"
+        >
+          <Plus className="h-4 w-4" />
+          <span>Add Expense</span>
+        </Button>
+
+        {/* Add Expense Button - Mobile (Icon Only) */}
+        <Button
+          onClick={() => router.push('/expense')}
+          className="sm:hidden bg-blue-600 hover:bg-blue-700 text-white"
+          size="icon"
+        >
+          <Plus className="h-5 w-5" />
+        </Button>
+
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="relative h-10 w-10 rounded-full">

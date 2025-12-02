@@ -193,7 +193,7 @@ exports.listHouseholds = async (req, res) => {
         },
       },
       orderBy: {
-        createdAt: 'desc',
+        createdAt: 'asc',
       },
     });
 

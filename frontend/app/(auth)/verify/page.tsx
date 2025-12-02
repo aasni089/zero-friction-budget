@@ -56,7 +56,7 @@ export default function VerifyPage() {
         sessionStorage.removeItem('auth_email');
         sessionStorage.removeItem('auth_message');
         sessionStorage.removeItem('is_registration');
-        router.push('/dashboard');
+        router.push('/expense');
       }
     } catch (err: any) {
       setError(err.message || 'Invalid verification code');

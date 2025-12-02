@@ -13,6 +13,10 @@ interface UiState {
   currentHouseholdId: string | null;
   households: Household[];
 
+  // Budget management
+  budgets: any[]; // Budget[] from budget-client
+  budgetsLoading: boolean;
+
   // Actions
   toggleSidebar: () => void;
   setSidebarCollapsed: (collapsed: boolean) => void;
@@ -20,6 +24,9 @@ interface UiState {
   setCurrentHouseholdId: (householdId: string | null) => void;
   setHouseholds: (households: Household[]) => void;
   getCurrentHousehold: () => Household | null;
+  setBudgets: (budgets: any[]) => void;
+  setBudgetsLoading: (loading: boolean) => void;
+  clearBudgets: () => void;
 }
 
 export const useUiStore = create<UiState>()(
@@ -30,6 +37,8 @@ export const useUiStore = create<UiState>()(
       sidebarOpen: false,
       currentHouseholdId: null,
       households: [],
+      budgets: [],
+      budgetsLoading: false,
 
       // Sidebar actions
       toggleSidebar: () => set((state) => ({
@@ -45,9 +54,13 @@ export const useUiStore = create<UiState>()(
       }),
 
       // Household actions
-      setCurrentHouseholdId: (householdId) => set({
-        currentHouseholdId: householdId
-      }),
+      setCurrentHouseholdId: (householdId) => {
+        set({ currentHouseholdId: householdId });
+        // Clear budgets when household changes
+        if (householdId !== get().currentHouseholdId) {
+          set({ budgets: [], budgetsLoading: false });
+        }
+      },
 
       setHouseholds: (households) => {
         const state = get();
@@ -73,6 +86,13 @@ export const useUiStore = create<UiState>()(
         const state = get();
         return state.households.find((h) => h.id === state.currentHouseholdId) || null;
       },
+
+      // Budget actions
+      setBudgets: (budgets) => set({ budgets }),
+
+      setBudgetsLoading: (loading) => set({ budgetsLoading: loading }),
+
+      clearBudgets: () => set({ budgets: [], budgetsLoading: false }),
     }),
     {
       name: 'ui-storage',
