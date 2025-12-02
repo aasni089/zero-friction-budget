@@ -77,6 +77,23 @@ export default function BudgetsPage() {
     },
   });
 
+  // Refresh budgets when page becomes visible (e.g., navigating from expense page)
+  useEffect(() => {
+    const handleVisibilityChange = async () => {
+      if (document.visibilityState === 'visible' && currentHouseholdId && budgets.length > 0) {
+        try {
+          const response = await getBudgets(currentHouseholdId);
+          setBudgets(response || []);
+        } catch (error) {
+          console.error('Failed to refresh budgets on visibility change:', error);
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [currentHouseholdId, budgets.length, setBudgets]);
+
   // Auto-open create modal if requested
   useEffect(() => {
     if (shouldAutoCreate && !budgetsLoading) {

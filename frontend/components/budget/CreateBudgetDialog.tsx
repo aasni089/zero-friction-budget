@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useUiStore } from '@/lib/stores/ui';
 import { createBudget } from '@/lib/api/budget-client';
-import { getCategories, type Category } from '@/lib/api/category-client';
+import { getCategories, createCategory, type Category } from '@/lib/api/category-client';
 import {
     Dialog,
     DialogContent,
@@ -56,6 +56,12 @@ export function CreateBudgetDialog({
     const [isLoadingCategories, setIsLoadingCategories] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
+    // Inline category creation state
+    const [showCategoryForm, setShowCategoryForm] = useState(false);
+    const [newCategoryName, setNewCategoryName] = useState('');
+    const [newCategoryColor, setNewCategoryColor] = useState('#3B82F6');
+    const [isCreatingCategory, setIsCreatingCategory] = useState(false);
+
     // Fetch categories when dialog opens
     useEffect(() => {
         const fetchCategories = async () => {
@@ -98,6 +104,37 @@ export function CreateBudgetDialog({
         setLineItems(lineItems.map(item =>
             item.id === id ? { ...item, [field]: value } : item
         ));
+    };
+
+    // Create new category inline
+    const handleCreateCategory = async () => {
+        if (!currentHouseholdId || !newCategoryName.trim()) {
+            toast.error('Please enter a category name');
+            return;
+        }
+
+        try {
+            setIsCreatingCategory(true);
+            const newCategory = await createCategory({
+                name: newCategoryName.trim(),
+                color: newCategoryColor,
+                householdId: currentHouseholdId,
+            });
+
+            // Add to categories list
+            setCategories([...categories, newCategory]);
+            toast.success(`Category "${newCategoryName}" created`);
+
+            // Reset form
+            setNewCategoryName('');
+            setNewCategoryColor('#3B82F6');
+            setShowCategoryForm(false);
+        } catch (error: any) {
+            console.error('Failed to create category:', error);
+            toast.error(error?.message || 'Failed to create category');
+        } finally {
+            setIsCreatingCategory(false);
+        }
     };
 
     // Calculate total allocated
@@ -271,7 +308,13 @@ export function CreateBudgetDialog({
                                         <div className="flex-1">
                                             <Select
                                                 value={item.categoryId}
-                                                onValueChange={(value) => handleUpdateLineItem(item.id, 'categoryId', value)}
+                                                onValueChange={(value) => {
+                                                    if (value === '__create_new__') {
+                                                        setShowCategoryForm(true);
+                                                    } else {
+                                                        handleUpdateLineItem(item.id, 'categoryId', value);
+                                                    }
+                                                }}
                                             >
                                                 <SelectTrigger>
                                                     <SelectValue placeholder="Select category" />
@@ -295,6 +338,9 @@ export function CreateBudgetDialog({
                                                             </div>
                                                         </SelectItem>
                                                     ))}
+                                                    <SelectItem value="__create_new__">
+                                                        <span className="text-blue-600 font-medium">+ Create New Category</span>
+                                                    </SelectItem>
                                                 </SelectContent>
                                             </Select>
                                         </div>
@@ -325,6 +371,58 @@ export function CreateBudgetDialog({
                                         </Button>
                                     </div>
                                 ))}
+
+                                {/* Inline Category Creation Form */}
+                                {showCategoryForm && (
+                                    <div className="border-t pt-3 mt-2 space-y-3">
+                                        <div className="flex items-center justify-between">
+                                            <Label className="text-sm font-medium">Create New Category</Label>
+                                            <Button
+                                                type="button"
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={() => {
+                                                    setShowCategoryForm(false);
+                                                    setNewCategoryName('');
+                                                    setNewCategoryColor('#3B82F6');
+                                                }}
+                                            >
+                                                Cancel
+                                            </Button>
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <Input
+                                                placeholder="Category name (e.g., Renovations)"
+                                                value={newCategoryName}
+                                                onChange={(e) => setNewCategoryName(e.target.value)}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter' && newCategoryName.trim()) {
+                                                        e.preventDefault();
+                                                        handleCreateCategory();
+                                                    }
+                                                }}
+                                            />
+                                            <Input
+                                                type="color"
+                                                value={newCategoryColor}
+                                                onChange={(e) => setNewCategoryColor(e.target.value)}
+                                                className="w-16"
+                                            />
+                                            <Button
+                                                type="button"
+                                                onClick={handleCreateCategory}
+                                                disabled={isCreatingCategory || !newCategoryName.trim()}
+                                                size="sm"
+                                            >
+                                                {isCreatingCategory ? (
+                                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                                ) : (
+                                                    <Plus className="h-4 w-4" />
+                                                )}
+                                            </Button>
+                                        </div>
+                                    </div>
+                                )}
 
                                 {/* Summary */}
                                 <div className="border-t pt-2 mt-3 space-y-1 text-sm">
