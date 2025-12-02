@@ -254,6 +254,18 @@ exports.listBudgets = async (req, res) => {
       where,
       include: {
         category: true,
+        categories: {
+          include: {
+            category: {
+              select: {
+                id: true,
+                name: true,
+                icon: true,
+                color: true,
+              },
+            },
+          },
+        },
         household: {
           select: {
             id: true,
@@ -311,6 +323,18 @@ exports.getBudget = async (req, res) => {
       where: { id },
       include: {
         category: true,
+        categories: {
+          include: {
+            category: {
+              select: {
+                id: true,
+                name: true,
+                icon: true,
+                color: true,
+              },
+            },
+          },
+        },
         household: {
           select: {
             id: true,
@@ -445,12 +469,43 @@ exports.updateBudget = async (req, res) => {
       updateData.categoryId = validatedData.categoryId;
     }
 
+    // Handle categories array (line items) if provided
+    if (req.body.categories !== undefined) {
+      // Delete all existing budget categories
+      await prisma.budgetCategory.deleteMany({
+        where: { budgetId: id },
+      });
+
+      // Create new budget categories if any provided
+      if (Array.isArray(req.body.categories) && req.body.categories.length > 0) {
+        await prisma.budgetCategory.createMany({
+          data: req.body.categories.map(cat => ({
+            budgetId: id,
+            categoryId: cat.categoryId,
+            allocatedAmount: cat.allocatedAmount,
+          })),
+        });
+      }
+    }
+
     // Update budget
     const updatedBudget = await prisma.budget.update({
       where: { id },
       data: updateData,
       include: {
         category: true,
+        categories: {
+          include: {
+            category: {
+              select: {
+                id: true,
+                name: true,
+                icon: true,
+                color: true,
+              },
+            },
+          },
+        },
         household: {
           select: {
             id: true,
