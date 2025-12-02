@@ -48,17 +48,20 @@ export default function DashboardPage() {
         // Fetch budgets and expenses in parallel
         // Note: For a real production app, we'd want a dedicated dashboard endpoint
         // to avoid over-fetching, but for now we'll aggregate on the client.
-        const [fetchedBudgets, fetchedExpenses] = await Promise.all([
+        const [fetchedBudgets, expensesResponse] = await Promise.all([
           getBudgets(currentHouseholdId),
-          getExpenses(currentHouseholdId, {
+          getExpenses({
+            householdId: currentHouseholdId,
             startDate: startDate.toISOString(),
             endDate: endDate.toISOString(),
             limit: 1000 // Fetch enough for charts
           })
         ]);
 
+        const fetchedExpenses = expensesResponse.expenses;
+
         // Calculate total spent for the month
-        const totalSpent = fetchedExpenses.reduce((sum, e) => {
+        const totalSpent = fetchedExpenses.reduce((sum: number, e: any) => {
           if (e.type === 'EXPENSE') return sum + e.amount;
           return sum;
         }, 0);
@@ -76,8 +79,8 @@ export default function DashboardPage() {
           const budgetCategoryIds = budget.categories?.map((bc: any) => bc.categoryId) || [];
 
           const spent = fetchedExpenses
-            .filter(e => e.type === 'EXPENSE' && e.categoryId && budgetCategoryIds.includes(e.categoryId))
-            .reduce((sum, e) => sum + e.amount, 0);
+            .filter((e: any) => e.type === 'EXPENSE' && e.categoryId && budgetCategoryIds.includes(e.categoryId))
+            .reduce((sum: number, e: any) => sum + e.amount, 0);
 
           return {
             ...budget,
