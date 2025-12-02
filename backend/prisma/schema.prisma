@@ -154,11 +154,29 @@ model Budget {
   category    Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
 
   expenses    Expense[]
+  categories  BudgetCategory[]  // Line items for multi-category budgets
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   @@index([householdId])
+  @@index([categoryId])
+}
+
+model BudgetCategory {
+  id              String   @id @default(cuid())
+  budgetId        String
+  budget          Budget   @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+  
+  categoryId      String
+  category        Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  
+  allocatedAmount Float
+  
+  createdAt       DateTime @default(now())
+  
+  @@unique([budgetId, categoryId])
+  @@index([budgetId])
   @@index([categoryId])
 }
 
@@ -189,6 +207,7 @@ model Category {
   children    Category[] @relation("CategoryHierarchy")
 
   budgets     Budget[]
+  budgetCategories BudgetCategory[]  // Line item allocations
   expenses    Expense[]
   recurringExpenses RecurringExpense[]
 
