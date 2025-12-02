@@ -67,15 +67,15 @@ export function BudgetCard({ budget }: BudgetCardProps) {
 
     return (
         <>
-            <Card className="p-6 hover:shadow-md transition-shadow">
-                <div className="space-y-4">
+            <Card className="p-6 hover:shadow-md transition-shadow border-border/50">
+                <div className="space-y-6">
                     {/* Header */}
                     <div className="flex items-start justify-between">
                         <div>
-                            <h3 className="text-xl font-semibold text-gray-900">
+                            <h3 className="text-xl font-semibold text-foreground">
                                 {budget.name}
                             </h3>
-                            <p className="text-sm text-gray-500 mt-1 capitalize">
+                            <p className="text-sm text-muted-foreground mt-1 capitalize">
                                 {budget.period.toLowerCase()} Budget
                             </p>
                         </div>
@@ -84,7 +84,7 @@ export function BudgetCard({ budget }: BudgetCardProps) {
                                 variant="ghost"
                                 size="icon"
                                 onClick={() => setIsEditOpen(true)}
-                                className="text-gray-500 hover:text-blue-600"
+                                className="text-muted-foreground hover:text-primary"
                             >
                                 <Pencil className="h-4 w-4" />
                             </Button>
@@ -94,7 +94,7 @@ export function BudgetCard({ budget }: BudgetCardProps) {
                                     <Button
                                         variant="ghost"
                                         size="icon"
-                                        className="text-gray-500 hover:text-red-600"
+                                        className="text-muted-foreground hover:text-destructive"
                                     >
                                         <Trash2 className="h-4 w-4" />
                                     </Button>
@@ -111,7 +111,7 @@ export function BudgetCard({ budget }: BudgetCardProps) {
                                         <AlertDialogCancel>Cancel</AlertDialogCancel>
                                         <AlertDialogAction
                                             onClick={handleDelete}
-                                            className="bg-red-600 hover:bg-red-700 text-white"
+                                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                                             disabled={isDeleting}
                                         >
                                             {isDeleting ? 'Deleting...' : 'Delete'}
@@ -123,33 +123,33 @@ export function BudgetCard({ budget }: BudgetCardProps) {
                     </div>
 
                     {/* Progress Section */}
-                    <div className="space-y-2">
+                    <div className="space-y-3">
                         <div className="flex justify-between text-sm">
-                            <span className="font-medium text-gray-700">
+                            <span className="font-medium text-foreground">
                                 ${progress.totalSpent.toFixed(2)} spent
                             </span>
-                            <span className="text-gray-500">
+                            <span className="text-muted-foreground">
                                 of ${budget.amount.toFixed(2)}
                             </span>
                         </div>
 
                         <Progress
                             value={Math.min(progress.percentage, 100)}
-                            className="h-2"
+                            className="h-3 rounded-full bg-secondary"
                             indicatorClassName={getProgressColor()}
                         />
 
                         <div className="flex justify-between items-center text-xs">
                             <span className={cn(
                                 "font-medium",
-                                progress.remaining < 0 ? "text-red-600" : "text-gray-600"
+                                progress.remaining < 0 ? "text-destructive" : "text-muted-foreground"
                             )}>
                                 {progress.remaining < 0
                                     ? `$${Math.abs(progress.remaining).toFixed(2)} over budget`
                                     : `$${progress.remaining.toFixed(2)} left`
                                 }
                             </span>
-                            <span className="text-gray-400">
+                            <span className="text-muted-foreground">
                                 {Math.round(progress.percentage)}%
                             </span>
                         </div>
@@ -157,23 +157,23 @@ export function BudgetCard({ budget }: BudgetCardProps) {
 
                     {/* Line Items Breakdown (if exists) */}
                     {budget.categories && budget.categories.length > 0 && (
-                        <div className="pt-4 border-t space-y-2">
-                            <h4 className="text-sm font-medium text-gray-700">Category Allocations</h4>
-                            <div className="space-y-1">
+                        <div className="pt-4 border-t border-border/50 space-y-3">
+                            <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Allocations</h4>
+                            <div className="space-y-2">
                                 {budget.categories.map((cat) => (
-                                    <div key={cat.id} className="flex justify-between text-sm">
+                                    <div key={cat.id} className="flex justify-between text-sm items-center">
                                         <div className="flex items-center gap-2">
                                             {cat.category?.color && (
                                                 <div
-                                                    className="w-2 h-2 rounded-full"
+                                                    className="w-2 h-2 rounded-full ring-1 ring-border"
                                                     style={{ backgroundColor: cat.category.color }}
                                                 />
                                             )}
-                                            <span className="text-gray-600">
+                                            <span className="text-foreground/80">
                                                 {cat.category?.name || 'Unknown'}
                                             </span>
                                         </div>
-                                        <span className="font-medium text-gray-700">
+                                        <span className="font-medium text-foreground">
                                             ${cat.allocatedAmount.toFixed(2)}
                                         </span>
                                     </div>

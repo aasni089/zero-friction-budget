@@ -118,7 +118,7 @@ export default function BudgetsPage() {
 
   if (budgetsLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 p-8">
+      <div className="min-h-screen bg-background p-8">
         <div className="max-w-4xl mx-auto space-y-4">
           <Skeleton className="h-12 w-48" />
           <Skeleton className="h-32 w-full" />
@@ -130,8 +130,8 @@ export default function BudgetsPage() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
-        <div className="bg-red-50 border border-red-200 text-red-800 px-6 py-4 rounded-lg max-w-md">
+      <div className="min-h-screen bg-background flex items-center justify-center px-4">
+        <div className="bg-destructive/10 border border-destructive/20 text-destructive px-6 py-4 rounded-lg max-w-md">
           <h3 className="font-semibold mb-2">Error Loading Budgets</h3>
           <p>{error}</p>
         </div>
@@ -140,7 +140,7 @@ export default function BudgetsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-8">
+    <div className="min-h-screen bg-background p-8">
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
@@ -152,7 +152,7 @@ export default function BudgetsPage() {
             >
               <ArrowLeft className="h-5 w-5" />
             </Button>
-            <h1 className="text-3xl font-bold text-gray-900">Budgets</h1>
+            <h1 className="text-3xl font-bold text-foreground">Budgets</h1>
           </div>
           <div className="flex items-center gap-3">
             <Select value={periodFilter} onValueChange={setPeriodFilter}>
@@ -168,7 +168,7 @@ export default function BudgetsPage() {
             </Select>
             <Button
               onClick={() => setIsCreateBudgetOpen(true)}
-              className="bg-blue-600 hover:bg-blue-700 text-white"
+              className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm"
             >
               <Plus className="h-5 w-5 mr-2" />
               Create Budget
@@ -180,16 +180,16 @@ export default function BudgetsPage() {
 
         {/* Budgets List */}
         {budgets.length === 0 ? (
-          <Card className="p-12 text-center">
-            <p className="text-gray-600 mb-4">No budgets found</p>
-            <p className="text-sm text-gray-500">
+          <Card className="p-12 text-center border-dashed">
+            <p className="text-muted-foreground mb-4">No budgets found</p>
+            <p className="text-sm text-muted-foreground/80">
               Create your first budget to start tracking expenses
             </p>
           </Card>
         ) : filteredBudgets.length === 0 ? (
-          <Card className="p-12 text-center">
-            <p className="text-gray-600 mb-4">No budgets found for selected period</p>
-            <p className="text-sm text-gray-500">
+          <Card className="p-12 text-center border-dashed">
+            <p className="text-muted-foreground mb-4">No budgets found for selected period</p>
+            <p className="text-sm text-muted-foreground/80">
               Try selecting a different period or create a new budget
             </p>
           </Card>

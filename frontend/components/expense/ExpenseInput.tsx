@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useUiStore } from '@/lib/stores/ui';
+import { useAuthStore } from '@/lib/stores/auth';
 import { createExpense, getExpenses, type Expense } from '@/lib/api/expense-client';
 import { useRealtime } from '@/hooks/useRealtime';
 import { ExpenseDetailsDialog } from './ExpenseDetailsDialog';
@@ -15,6 +16,7 @@ import { cn } from '@/lib/utils';
 
 export function ExpenseInput() {
   const { currentHouseholdId } = useUiStore();
+  const { user } = useAuthStore();
 
   // Form state
   const [amount, setAmount] = useState('');
@@ -180,108 +182,107 @@ export function ExpenseInput() {
   const dateOrder = ['Today', 'Yesterday', 'Earlier'];
 
   return (
-    <div className="min-h-[calc(100vh-200px)] flex flex-col">
+    <div className="min-h-[calc(100vh-100px)] flex flex-col items-center justify-center p-4 animate-in fade-in duration-500">
       {/* Main Content - Centered */}
-      <div className="flex-1 flex items-center justify-center px-4">
-        <div className="w-full max-w-2xl">
-          {/* Greeting Text */}
-          <div className="text-center mb-6">
-            <h1 className="text-3xl font-semibold text-gray-900 mb-2">
-              Track an expense
-            </h1>
-            <p className="text-gray-500">
-              Enter the amount you spent and we'll help you log it
-            </p>
-          </div>
+      <div className="w-full max-w-xl space-y-8">
+        {/* Greeting Text */}
+        <div className="text-center space-y-2">
+          <h1 className="text-4xl font-bold tracking-tight text-foreground">
+            Good morning, {user?.name?.split(' ')[0] || 'there'}
+          </h1>
+          <p className="text-lg text-muted-foreground">
+            What would you like to track today?
+          </p>
+        </div>
 
-          {/* Main Amount Input - ChatGPT Style */}
-          <div>
-            <div className="relative">
-              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-2xl font-semibold text-gray-500 pointer-events-none">
-                $
-              </span>
-              <Input
-                ref={amountInputRef}
-                type="text"
-                inputMode="decimal"
-                placeholder="0.00"
-                value={amount}
-                onChange={handleAmountChange}
-                disabled={isSubmitting}
-                className="pl-10 pr-14 py-6 text-3xl font-semibold border-2 focus:border-blue-500 transition-colors"
-              />
-              <Button
-                onClick={handleAmountSubmit}
-                disabled={!isFormValid || isSubmitting}
-                size="icon"
-                className="absolute right-2 top-1/2 -translate-y-1/2 h-10 w-10 rounded-lg bg-blue-600 hover:bg-blue-700"
-              >
-                {isSubmitting ? (
-                  <Loader2 className="h-5 w-5 animate-spin" />
-                ) : (
-                  <ArrowRight className="h-5 w-5" />
-                )}
-              </Button>
-            </div>
+        {/* Main Amount Input - ChatGPT Style */}
+        <div className="relative group">
+          <div className="absolute inset-0 bg-primary/5 rounded-2xl blur-xl transition-all group-hover:bg-primary/10" />
+          <div className="relative bg-card rounded-2xl shadow-lg border border-border/50 p-2 flex items-center transition-all focus-within:ring-4 focus-within:ring-primary/10 focus-within:border-primary/50">
+            <span className="pl-6 text-3xl font-medium text-muted-foreground select-none">
+              $
+            </span>
+            <input
+              ref={amountInputRef}
+              type="text"
+              inputMode="decimal"
+              placeholder="0.00"
+              value={amount}
+              onChange={handleAmountChange}
+              disabled={isSubmitting}
+              className="w-full bg-transparent border-none text-4xl font-semibold p-4 focus:ring-0 placeholder:text-muted-foreground/30"
+            />
+            <Button
+              onClick={handleAmountSubmit}
+              disabled={!isFormValid || isSubmitting}
+              size="icon"
+              className={cn(
+                "h-12 w-12 rounded-xl mr-2 transition-all duration-300",
+                isFormValid ? "bg-primary text-primary-foreground shadow-md hover:scale-105" : "bg-muted text-muted-foreground"
+              )}
+            >
+              {isSubmitting ? (
+                <Loader2 className="h-6 w-6 animate-spin" />
+              ) : (
+                <ArrowRight className="h-6 w-6" />
+              )}
+            </Button>
           </div>
         </div>
-      </div>
 
+        {/* Recent Expenses - Minimalist List */}
+        <div className="space-y-4 pt-8">
+          <div className="flex items-center justify-between px-2">
+            <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Recent Activity</h3>
+          </div>
 
-      {/* Recent Expenses - Below centered input */}
-      <div className="w-full max-w-2xl mx-auto px-4 py-6">
-        <div className="space-y-4">
-          <h3 className="text-lg font-semibold text-gray-900">Recent Expenses</h3>
           {isLoadingExpenses ? (
             <div className="flex justify-center py-8">
-              <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
             </div>
           ) : recentExpenses.length === 0 ? (
-            <Card className="p-8 text-center">
-              <p className="text-gray-500">No expenses yet</p>
-              <p className="text-sm text-gray-400 mt-1">Add your first expense above</p>
-            </Card>
+            <div className="text-center py-12 text-muted-foreground">
+              <p>No recent activity</p>
+            </div>
           ) : (
-            <div className="space-y-6">
+            <div className="space-y-3">
               {dateOrder.map((dateLabel) => {
                 const expenses = groupedExpenses[dateLabel];
                 if (!expenses || expenses.length === 0) return null;
 
                 return (
-                  <div key={dateLabel}>
-                    <h4 className="text-sm font-medium text-gray-500 mb-3">{dateLabel}</h4>
-                    <div className="space-y-2">
-                      {expenses.map((expense) => (
-                        <Card key={expense.id} className="p-4 hover:shadow-md transition-shadow">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                              {expense.category?.color && (
-                                <div
-                                  className="w-3 h-3 rounded-full flex-shrink-0"
-                                  style={{ backgroundColor: expense.category.color }}
-                                />
-                              )}
-                              <div>
-                                <p className="font-medium text-gray-900">
-                                  {expense.description || expense.category?.name || 'Expense'}
-                                </p>
-                                {expense.category && (
-                                  <p className="text-sm text-gray-500">{expense.category.name}</p>
-                                )}
-                              </div>
-                            </div>
-                            <div className="text-right">
-                              <p className="font-semibold text-gray-900">
-                                ${expense.amount.toFixed(2)}
-                              </p>
-                              <p className="text-xs text-gray-500">
-                                {format(new Date(expense.date), 'MMM d, h:mm a')}
-                              </p>
-                            </div>
+                  <div key={dateLabel} className="space-y-2">
+                    <h4 className="text-xs font-medium text-muted-foreground/70 px-2">{dateLabel}</h4>
+                    {expenses.map((expense) => (
+                      <div
+                        key={expense.id}
+                        className="group flex items-center justify-between p-4 rounded-xl hover:bg-muted/50 transition-colors border border-transparent hover:border-border/50"
+                      >
+                        <div className="flex items-center gap-4">
+                          <div
+                            className="w-10 h-10 rounded-full flex items-center justify-center text-lg shadow-sm"
+                            style={{
+                              backgroundColor: expense.category?.color ? `${expense.category.color}20` : 'var(--muted)',
+                              color: expense.category?.color || 'var(--foreground)'
+                            }}
+                          >
+                            {/* We could add icons here later based on category */}
+                            {expense.category?.name?.[0] || '?'}
                           </div>
-                        </Card>
-                      ))}
-                    </div>
+                          <div>
+                            <p className="font-medium text-foreground">
+                              {expense.description || expense.category?.name || 'Expense'}
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                              {expense.category?.name || 'Uncategorized'}
+                            </p>
+                          </div>
+                        </div>
+                        <span className="font-semibold text-foreground">
+                          ${expense.amount.toFixed(2)}
+                        </span>
+                      </div>
+                    ))}
                   </div>
                 );
               })}

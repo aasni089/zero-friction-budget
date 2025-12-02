@@ -108,29 +108,29 @@ export function Sidebar({ className }: SidebarProps) {
     <TooltipProvider>
       <aside
         className={cn(
-          'h-screen flex flex-col bg-white border-r border-gray-200 transition-all duration-300',
+          'h-screen flex flex-col bg-sidebar border-r border-sidebar-border transition-all duration-300',
           sidebarCollapsed ? 'w-20' : 'w-64',
           className
         )}
       >
         {/* Logo Section */}
-        <div className="p-4 border-b border-gray-200">
+        <div className="p-4 border-b border-sidebar-border">
           <div className={cn('flex items-center', sidebarCollapsed ? 'justify-center' : 'justify-start')}>
             <div className="text-3xl">💰</div>
             {!sidebarCollapsed && (
-              <span className="ml-2 text-lg font-bold text-gray-900">Budget</span>
+              <span className="ml-2 text-lg font-bold text-sidebar-foreground">Budget</span>
             )}
           </div>
         </div>
 
         {/* Household Selector / Create Button */}
         {!sidebarCollapsed && households.length > 0 && (
-          <div className="p-4 border-b border-gray-200">
+          <div className="p-4 border-b border-sidebar-border">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="outline"
-                  className="w-full justify-between h-auto py-2"
+                  className="w-full justify-between h-auto py-2 bg-sidebar text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground border-sidebar-border"
                 >
                   <div className="flex items-center space-x-2 truncate">
                     <Users className="h-4 w-4 flex-shrink-0" />
@@ -149,13 +149,13 @@ export function Sidebar({ className }: SidebarProps) {
                     key={household.id}
                     onClick={() => handleHouseholdChange(household.id)}
                     className={cn(
-                      currentHouseholdId === household.id && 'bg-gray-100'
+                      currentHouseholdId === household.id && 'bg-sidebar-accent text-sidebar-accent-foreground'
                     )}
                   >
                     <div className="flex flex-col">
                       <span className="font-medium">{household.name}</span>
                       {household._count && (
-                        <span className="text-xs text-gray-500">
+                        <span className="text-xs text-muted-foreground">
                           {household._count.members} member
                           {household._count.members !== 1 ? 's' : ''}
                         </span>
@@ -175,10 +175,10 @@ export function Sidebar({ className }: SidebarProps) {
 
         {/* No Household - Create Button */}
         {!sidebarCollapsed && households.length === 0 && (
-          <div className="p-4 border-b border-gray-200">
+          <div className="p-4 border-b border-sidebar-border">
             <Button
               onClick={handleCreateHousehold}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+              className="w-full"
               size="sm"
             >
               <Plus className="h-4 w-4 mr-2" />
@@ -189,10 +189,10 @@ export function Sidebar({ className }: SidebarProps) {
 
         {/* Collapsed household indicator */}
         {sidebarCollapsed && (
-          <div className="px-4 py-2 border-b border-gray-200 flex justify-center">
+          <div className="px-4 py-2 border-b border-sidebar-border flex justify-center">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-10 w-10">
+                <Button variant="ghost" size="icon" className="h-10 w-10 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground">
                   {households.length > 0 ? (
                     <Users className="h-5 w-5" />
                   ) : (
@@ -210,13 +210,13 @@ export function Sidebar({ className }: SidebarProps) {
                         key={household.id}
                         onClick={() => handleHouseholdChange(household.id)}
                         className={cn(
-                          currentHouseholdId === household.id && 'bg-gray-100'
+                          currentHouseholdId === household.id && 'bg-sidebar-accent text-sidebar-accent-foreground'
                         )}
                       >
                         <div className="flex flex-col">
                           <span className="font-medium">{household.name}</span>
                           {household._count && (
-                            <span className="text-xs text-gray-500">
+                            <span className="text-xs text-muted-foreground">
                               {household._count.members} member
                               {household._count.members !== 1 ? 's' : ''}
                             </span>
@@ -259,8 +259,8 @@ export function Sidebar({ className }: SidebarProps) {
                 className={cn(
                   'flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors',
                   isActive
-                    ? 'bg-blue-50 text-blue-700'
-                    : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900',
+                    ? 'bg-sidebar-accent text-sidebar-accent-foreground'
+                    : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
                   sidebarCollapsed ? 'justify-center' : 'justify-start'
                 )}
               >
@@ -288,24 +288,24 @@ export function Sidebar({ className }: SidebarProps) {
         </nav>
 
         {/* Footer - User Profile with Collapse Button */}
-        <div className="p-4 border-t border-gray-200">
+        <div className="p-4 border-t border-sidebar-border">
           <div className={cn('flex items-center', sidebarCollapsed ? 'justify-center' : 'justify-between')}>
             {/* User Profile with Dropdown */}
             {!sidebarCollapsed && user && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <button className="flex items-center space-x-3 hover:bg-gray-50 rounded-lg p-2 transition-colors flex-1 min-w-0">
+                  <button className="flex items-center space-x-3 hover:bg-sidebar-accent rounded-lg p-2 transition-colors flex-1 min-w-0 text-sidebar-foreground">
                     <Avatar className="h-9 w-9 flex-shrink-0">
                       <AvatarImage src={user.image} alt={user.name} />
-                      <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white font-semibold text-sm">
+                      <AvatarFallback className="bg-primary text-primary-foreground font-semibold text-sm">
                         {getUserInitials(user.name)}
                       </AvatarFallback>
                     </Avatar>
                     <div className="flex-1 min-w-0 text-left">
-                      <p className="text-sm font-semibold text-gray-900 truncate">
+                      <p className="text-sm font-semibold truncate">
                         {user.name}
                       </p>
-                      <p className="text-xs text-gray-500 truncate">{user.email}</p>
+                      <p className="text-xs text-muted-foreground truncate">{user.email}</p>
                     </div>
                   </button>
                 </DropdownMenuTrigger>
@@ -332,7 +332,7 @@ export function Sidebar({ className }: SidebarProps) {
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
                     onClick={handleLogout}
-                    className="text-red-600 focus:text-red-600 focus:bg-red-50"
+                    className="text-destructive focus:text-destructive focus:bg-destructive/10"
                   >
                     <LogOut className="mr-2 h-4 w-4" />
                     <span>Logout</span>
@@ -345,10 +345,10 @@ export function Sidebar({ className }: SidebarProps) {
             {sidebarCollapsed && user && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <button className="hover:opacity-80 transition-opacity focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded-full">
+                  <button className="hover:opacity-80 transition-opacity focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded-full">
                     <Avatar className="h-9 w-9">
                       <AvatarImage src={user.image} alt={user.name} />
-                      <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white font-semibold text-sm">
+                      <AvatarFallback className="bg-primary text-primary-foreground font-semibold text-sm">
                         {getUserInitials(user.name)}
                       </AvatarFallback>
                     </Avatar>
@@ -377,7 +377,7 @@ export function Sidebar({ className }: SidebarProps) {
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
                     onClick={handleLogout}
-                    className="text-red-600 focus:text-red-600 focus:bg-red-50"
+                    className="text-destructive focus:text-destructive focus:bg-destructive/10"
                   >
                     <LogOut className="mr-2 h-4 w-4" />
                     <span>Logout</span>
@@ -392,7 +392,7 @@ export function Sidebar({ className }: SidebarProps) {
                 variant="ghost"
                 size="icon"
                 onClick={toggleSidebar}
-                className="hidden lg:flex h-9 w-9 flex-shrink-0"
+                className="hidden lg:flex h-9 w-9 flex-shrink-0 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
               >
                 <div className="flex items-center -space-x-2.5">
                   <ChevronLeft className="h-4 w-4" />
@@ -408,7 +408,7 @@ export function Sidebar({ className }: SidebarProps) {
               variant="ghost"
               size="icon"
               onClick={toggleSidebar}
-              className="hidden lg:flex h-9 w-9 mt-2"
+              className="hidden lg:flex h-9 w-9 mt-2 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
             >
               <div className="flex items-center -space-x-2.5">
                 <ChevronLeft className="h-4 w-4 rotate-180" />

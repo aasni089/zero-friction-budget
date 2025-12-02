@@ -79,13 +79,15 @@ enum UserStatus {
 // ============================================================================
 
 model Household {
-  id        String   @id @default(cuid())
-  name      String
-  ownerId   String
-  owner     User     @relation("HouseholdOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  id              String   @id @default(cuid())
+  name            String
+  ownerId         String
+  owner           User     @relation("HouseholdOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  primaryBudgetId String?  @unique
+  primaryBudget   Budget?  @relation("PrimaryBudget", fields: [primaryBudgetId], references: [id], onDelete: SetNull)
 
   members   HouseholdMember[]
-  budgets   Budget[]
+  budgets   Budget[] @relation("HouseholdBudgets")
   expenses  Expense[]
   categories Category[]
   invitations Invitation[]
@@ -142,7 +144,7 @@ model Invitation {
 model Budget {
   id          String   @id @default(cuid())
   householdId String
-  household   Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  household   Household @relation("HouseholdBudgets", fields: [householdId], references: [id], onDelete: Cascade)
 
   name        String
   amount      Float
@@ -155,6 +157,8 @@ model Budget {
 
   expenses    Expense[]
   categories  BudgetCategory[]  // Line items for multi-category budgets
+
+  primaryForHousehold Household? @relation("PrimaryBudget")
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
