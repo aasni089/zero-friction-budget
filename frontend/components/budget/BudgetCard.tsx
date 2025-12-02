@@ -58,9 +58,10 @@ export function BudgetCard({ budget }: BudgetCardProps) {
     };
 
     // Determine progress bar color based on status/percentage
+    // Green: <70%, Yellow: 70-90%, Red: ≥90%
     const getProgressColor = () => {
-        if (progress.percentage >= 100) return 'bg-red-500';
-        if (progress.percentage >= 80) return 'bg-yellow-500';
+        if (progress.percentage >= 90) return 'bg-red-500';
+        if (progress.percentage >= 70) return 'bg-yellow-500';
         return 'bg-green-500';
     };
 

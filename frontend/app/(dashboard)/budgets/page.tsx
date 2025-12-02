@@ -8,6 +8,13 @@ import { useRealtime } from '@/hooks/useRealtime';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Plus, ArrowLeft } from 'lucide-react';
 import { CreateBudgetDialog } from '@/components/budget/CreateBudgetDialog';
 import { BudgetCard } from '@/components/budget/BudgetCard';
@@ -19,9 +26,15 @@ export default function BudgetsPage() {
 
   const [error, setError] = useState<string | null>(null);
   const [isCreateBudgetOpen, setIsCreateBudgetOpen] = useState(false);
+  const [periodFilter, setPeriodFilter] = useState<string>('ALL');
 
   // Check if we should auto-open create modal (from ?action=create)
   const shouldAutoCreate = searchParams.get('action') === 'create';
+
+  // Filter budgets based on selected period
+  const filteredBudgets = periodFilter === 'ALL'
+    ? budgets
+    : budgets.filter(b => b.period === periodFilter);
 
   useEffect(() => {
     const fetchBudgets = async () => {
@@ -141,13 +154,26 @@ export default function BudgetsPage() {
             </Button>
             <h1 className="text-3xl font-bold text-gray-900">Budgets</h1>
           </div>
-          <Button
-            onClick={() => setIsCreateBudgetOpen(true)}
-            className="bg-blue-600 hover:bg-blue-700 text-white"
-          >
-            <Plus className="h-5 w-5 mr-2" />
-            Create Budget
-          </Button>
+          <div className="flex items-center gap-3">
+            <Select value={periodFilter} onValueChange={setPeriodFilter}>
+              <SelectTrigger className="w-[150px]">
+                <SelectValue placeholder="Filter by period" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">All Periods</SelectItem>
+                <SelectItem value="WEEKLY">Weekly</SelectItem>
+                <SelectItem value="MONTHLY">Monthly</SelectItem>
+                <SelectItem value="YEARLY">Yearly</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button
+              onClick={() => setIsCreateBudgetOpen(true)}
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              <Plus className="h-5 w-5 mr-2" />
+              Create Budget
+            </Button>
+          </div>
         </div>
 
 
@@ -160,9 +186,16 @@ export default function BudgetsPage() {
               Create your first budget to start tracking expenses
             </p>
           </Card>
+        ) : filteredBudgets.length === 0 ? (
+          <Card className="p-12 text-center">
+            <p className="text-gray-600 mb-4">No budgets found for selected period</p>
+            <p className="text-sm text-gray-500">
+              Try selecting a different period or create a new budget
+            </p>
+          </Card>
         ) : (
           <div className="space-y-4">
-            {budgets.map((budget) => (
+            {filteredBudgets.map((budget) => (
               <BudgetCard key={budget.id} budget={budget} />
             ))}
           </div>
