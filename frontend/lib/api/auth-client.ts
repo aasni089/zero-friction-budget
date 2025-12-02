@@ -163,7 +163,7 @@ export async function logout() {
 // Update account settings
 export async function updateAccountSettings(data: {
   name?: string;
-  preferredAuthMethod?: 'magic_link' | 'google';
+  preferredAuthMethod?: 'one_time_code' | 'google';
   phoneNumber?: string;
 }) {
   return api.patch<{ success: boolean; user: User }>(

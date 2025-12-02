@@ -55,7 +55,6 @@ model User {
 enum AuthMethod {
   OTC
   GOOGLE
-  MAGIC_LINK
 }
 
 enum TwoFAMethod {
