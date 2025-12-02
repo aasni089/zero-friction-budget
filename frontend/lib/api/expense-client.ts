@@ -30,6 +30,7 @@ export interface CreateExpenseData {
   description?: string;
   date: string;
   categoryId?: string;
+  budgetId?: string;
   householdId: string;
 }
 

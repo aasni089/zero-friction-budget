@@ -38,21 +38,21 @@ export function EditBudgetDialog({
     onOpenChange,
     onSuccess,
 }: EditBudgetDialogProps) {
-    const { currentHouseholdId, budgets, setBudgets } = useUiStore();
+    const { budgets, setBudgets } = useUiStore();
 
     // Form state
     const [name, setName] = useState(budget.name);
     const [amount, setAmount] = useState(budget.amount.toString());
-    const [period, setPeriod] = useState<'WEEKLY' | 'MONTHLY' | 'YEARLY'>(budget.period);
+    const [period, setPeriod] = useState<'WEEKLY' | 'MONTHLY' | 'YEARLY'>(budget.period as 'WEEKLY' | 'MONTHLY' | 'YEARLY');
 
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    // Reset form when budget changes
+    // Reset form when budget changes or dialog opens
     useEffect(() => {
         if (open) {
             setName(budget.name);
             setAmount(budget.amount.toString());
-            setPeriod(budget.period);
+            setPeriod(budget.period as 'WEEKLY' | 'MONTHLY' | 'YEARLY');
         }
     }, [budget, open]);
 
@@ -61,6 +61,11 @@ export function EditBudgetDialog({
 
         if (!amount || parseFloat(amount) <= 0) {
             toast.error('Please enter a valid amount');
+            return;
+        }
+
+        if (!name.trim()) {
+            toast.error('Please enter a budget name');
             return;
         }
 
@@ -97,25 +102,26 @@ export function EditBudgetDialog({
                 <DialogHeader>
                     <DialogTitle>Edit Budget</DialogTitle>
                     <DialogDescription>
-                        Update your budget details.
+                        Update your budget details. Note: Line item allocation cannot be changed after creation.
                     </DialogDescription>
                 </DialogHeader>
 
                 <form onSubmit={handleSubmit} className="space-y-4 py-4">
                     {/* Budget Name */}
                     <div className="space-y-2">
-                        <Label htmlFor="edit-name">Budget Name</Label>
+                        <Label htmlFor="edit-name">Budget Name *</Label>
                         <Input
                             id="edit-name"
-                            placeholder="e.g. Monthly Groceries"
+                            placeholder="e.g. Monthly Household Budget"
                             value={name}
                             onChange={(e) => setName(e.target.value)}
+                            required
                         />
                     </div>
 
                     {/* Amount */}
                     <div className="space-y-2">
-                        <Label htmlFor="edit-amount">Amount</Label>
+                        <Label htmlFor="edit-amount">Total Budget Amount *</Label>
                         <div className="relative">
                             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">
                                 $
@@ -136,7 +142,7 @@ export function EditBudgetDialog({
 
                     {/* Period */}
                     <div className="space-y-2">
-                        <Label htmlFor="edit-period">Period</Label>
+                        <Label htmlFor="edit-period">Period *</Label>
                         <Select
                             value={period}
                             onValueChange={(value: 'WEEKLY' | 'MONTHLY' | 'YEARLY') => setPeriod(value)}
@@ -151,6 +157,24 @@ export function EditBudgetDialog({
                             </SelectContent>
                         </Select>
                     </div>
+
+                    {/* Show existing line items (read-only) */}
+                    {budget.categories && budget.categories.length > 0 && (
+                        <div className="space-y-2">
+                            <Label>Category Allocations</Label>
+                            <div className="border rounded-lg p-3 bg-gray-50 space-y-2">
+                                {budget.categories.map((cat) => (
+                                    <div key={cat.id} className="flex justify-between text-sm">
+                                        <span className="text-gray-700">{cat.category?.name || 'Unknown'}</span>
+                                        <span className="font-medium">${cat.allocatedAmount.toFixed(2)}</span>
+                                    </div>
+                                ))}
+                            </div>
+                            <p className="text-xs text-gray-500">
+                                Line item allocations are set at budget creation and cannot be modified.
+                            </p>
+                        </div>
+                    )}
 
                     <DialogFooter>
                         <Button

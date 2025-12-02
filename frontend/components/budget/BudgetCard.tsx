@@ -153,6 +153,33 @@ export function BudgetCard({ budget }: BudgetCardProps) {
                             </span>
                         </div>
                     </div>
+
+                    {/* Line Items Breakdown (if exists) */}
+                    {budget.categories && budget.categories.length > 0 && (
+                        <div className="pt-4 border-t space-y-2">
+                            <h4 className="text-sm font-medium text-gray-700">Category Allocations</h4>
+                            <div className="space-y-1">
+                                {budget.categories.map((cat) => (
+                                    <div key={cat.id} className="flex justify-between text-sm">
+                                        <div className="flex items-center gap-2">
+                                            {cat.category?.color && (
+                                                <div
+                                                    className="w-2 h-2 rounded-full"
+                                                    style={{ backgroundColor: cat.category.color }}
+                                                />
+                                            )}
+                                            <span className="text-gray-600">
+                                                {cat.category?.name || 'Unknown'}
+                                            </span>
+                                        </div>
+                                        <span className="font-medium text-gray-700">
+                                            ${cat.allocatedAmount.toFixed(2)}
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
                 </div>
             </Card>
 

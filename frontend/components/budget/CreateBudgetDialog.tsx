@@ -22,9 +22,15 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { startOfMonth, format } from 'date-fns';
+import { startOfMonth } from 'date-fns';
+
+interface LineItem {
+    id: string; // temporary ID for React keys
+    categoryId: string;
+    allocatedAmount: string;
+}
 
 interface CreateBudgetDialogProps {
     open: boolean;
@@ -43,7 +49,7 @@ export function CreateBudgetDialog({
     const [name, setName] = useState('');
     const [amount, setAmount] = useState('');
     const [period, setPeriod] = useState<'WEEKLY' | 'MONTHLY' | 'YEARLY'>('MONTHLY');
-    const [categoryId, setCategoryId] = useState<string>('all'); // 'all' or specific category ID
+    const [lineItems, setLineItems] = useState<LineItem[]>([]);
 
     // Data state
     const [categories, setCategories] = useState<Category[]>([]);
@@ -70,15 +76,38 @@ export function CreateBudgetDialog({
         fetchCategories();
     }, [currentHouseholdId, open]);
 
-    // Auto-fill name when category is selected
-    useEffect(() => {
-        if (categoryId && categoryId !== 'all' && !name) {
-            const category = categories.find(c => c.id === categoryId);
-            if (category) {
-                setName(category.name);
-            }
-        }
-    }, [categoryId, categories, name]);
+    // Add a new line item
+    const handleAddLineItem = () => {
+        setLineItems([
+            ...lineItems,
+            {
+                id: Math.random().toString(36).substr(2, 9),
+                categoryId: '',
+                allocatedAmount: '',
+            },
+        ]);
+    };
+
+    // Remove a line item
+    const handleRemoveLineItem = (id: string) => {
+        setLineItems(lineItems.filter(item => item.id !== id));
+    };
+
+    // Update line item
+    const handleUpdateLineItem = (id: string, field: keyof LineItem, value: string) => {
+        setLineItems(lineItems.map(item =>
+            item.id === id ? { ...item, [field]: value } : item
+        ));
+    };
+
+    // Calculate total allocated
+    const totalAllocated = lineItems.reduce((sum, item) => {
+        const itemAmount = parseFloat(item.allocatedAmount) || 0;
+        return sum + itemAmount;
+    }, 0);
+
+    const budgetAmount = parseFloat(amount) || 0;
+    const remaining = budgetAmount - totalAllocated;
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -86,7 +115,30 @@ export function CreateBudgetDialog({
         if (!currentHouseholdId) return;
 
         if (!amount || parseFloat(amount) <= 0) {
-            toast.error('Please enter a valid amount');
+            toast.error('Please enter a valid budget amount');
+            return;
+        }
+
+        if (!name.trim()) {
+            toast.error('Please enter a budget name');
+            return;
+        }
+
+        // Validate line items
+        for (const item of lineItems) {
+            if (!item.categoryId) {
+                toast.error('All line items must have a category selected');
+                return;
+            }
+            if (!item.allocatedAmount || parseFloat(item.allocatedAmount) <= 0) {
+                toast.error('All line items must have a valid amount');
+                return;
+            }
+        }
+
+        // Check if total allocated exceeds budget
+        if (totalAllocated > budgetAmount) {
+            toast.error(`Allocated amount ($${totalAllocated.toFixed(2)}) exceeds budget ($${budgetAmount.toFixed(2)})`);
             return;
         }
 
@@ -97,19 +149,19 @@ export function CreateBudgetDialog({
             const startDate = startOfMonth(new Date()).toISOString();
 
             const budgetData: any = {
-                name: name || (categoryId === 'all' ? 'General Budget' : categories.find(c => c.id === categoryId)?.name || 'Budget'),
+                name,
                 amount: parseFloat(amount),
                 period,
                 startDate,
                 householdId: currentHouseholdId,
             };
 
-            // If a specific category is selected, add it to the budget
-            if (categoryId && categoryId !== 'all') {
-                budgetData.categories = [{
-                    categoryId,
-                    allocatedAmount: parseFloat(amount) // Allocate full amount to this category for now
-                }];
+            // Add line items if any
+            if (lineItems.length > 0) {
+                budgetData.categories = lineItems.map(item => ({
+                    categoryId: item.categoryId,
+                    allocatedAmount: parseFloat(item.allocatedAmount),
+                }));
             }
 
             const newBudget = await createBudget(budgetData);
@@ -123,7 +175,7 @@ export function CreateBudgetDialog({
             setName('');
             setAmount('');
             setPeriod('MONTHLY');
-            setCategoryId('all');
+            setLineItems([]);
 
             onSuccess?.();
             onOpenChange(false);
@@ -137,50 +189,30 @@ export function CreateBudgetDialog({
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-[425px]">
+            <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                     <DialogTitle>Create New Budget</DialogTitle>
                     <DialogDescription>
-                        Set up a budget to track your spending.
+                        Set up a budget to track your spending. Optionally allocate amounts to specific categories.
                     </DialogDescription>
                 </DialogHeader>
 
                 <form onSubmit={handleSubmit} className="space-y-4 py-4">
-                    {/* Category Selection */}
-                    <div className="space-y-2">
-                        <Label htmlFor="category">Category</Label>
-                        <Select value={categoryId} onValueChange={setCategoryId}>
-                            <SelectTrigger id="category">
-                                <SelectValue placeholder="Select category" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="all">All Categories (General)</SelectItem>
-                                {categories.map((category) => (
-                                    <SelectItem key={category.id} value={category.id}>
-                                        <div className="flex items-center gap-2">
-                                            {category.icon && <span>{category.icon}</span>}
-                                            <span>{category.name}</span>
-                                        </div>
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    </div>
-
                     {/* Budget Name */}
                     <div className="space-y-2">
-                        <Label htmlFor="name">Budget Name</Label>
+                        <Label htmlFor="name">Budget Name *</Label>
                         <Input
                             id="name"
-                            placeholder="e.g. Monthly Groceries"
+                            placeholder="e.g. Monthly Household Budget"
                             value={name}
                             onChange={(e) => setName(e.target.value)}
+                            required
                         />
                     </div>
 
-                    {/* Amount */}
+                    {/* Total Amount */}
                     <div className="space-y-2">
-                        <Label htmlFor="amount">Amount</Label>
+                        <Label htmlFor="amount">Total Budget Amount *</Label>
                         <div className="relative">
                             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">
                                 $
@@ -201,7 +233,7 @@ export function CreateBudgetDialog({
 
                     {/* Period */}
                     <div className="space-y-2">
-                        <Label htmlFor="period">Period</Label>
+                        <Label htmlFor="period">Period *</Label>
                         <Select
                             value={period}
                             onValueChange={(value: 'WEEKLY' | 'MONTHLY' | 'YEARLY') => setPeriod(value)}
@@ -215,6 +247,110 @@ export function CreateBudgetDialog({
                                 <SelectItem value="YEARLY">Yearly</SelectItem>
                             </SelectContent>
                         </Select>
+                    </div>
+
+                    {/* Line Items Section */}
+                    <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                            <Label>Category Line Items (Optional)</Label>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={handleAddLineItem}
+                            >
+                                <Plus className="h-4 w-4 mr-1" />
+                                Add Line Item
+                            </Button>
+                        </div>
+
+                        {lineItems.length > 0 && (
+                            <div className="space-y-2 border rounded-lg p-3 bg-gray-50">
+                                {lineItems.map((item, index) => (
+                                    <div key={item.id} className="flex gap-2 items-start">
+                                        <div className="flex-1">
+                                            <Select
+                                                value={item.categoryId}
+                                                onValueChange={(value) => handleUpdateLineItem(item.id, 'categoryId', value)}
+                                            >
+                                                <SelectTrigger>
+                                                    <SelectValue placeholder="Select category" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {categories.map((category) => (
+                                                        <SelectItem
+                                                            key={category.id}
+                                                            value={category.id}
+                                                            disabled={lineItems.some(li => li.categoryId === category.id && li.id !== item.id)}
+                                                        >
+                                                            <div className="flex items-center gap-2">
+                                                                {category.color && (
+                                                                    <div
+                                                                        className="w-3 h-3 rounded-full"
+                                                                        style={{ backgroundColor: category.color }}
+                                                                    />
+                                                                )}
+                                                                {category.icon && <span>{category.icon}</span>}
+                                                                <span>{category.name}</span>
+                                                            </div>
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                        <div className="w-32">
+                                            <div className="relative">
+                                                <span className="absolute left-2 top-1/2 -translate-y-1/2 text-sm text-gray-500">
+                                                    $
+                                                </span>
+                                                <Input
+                                                    type="number"
+                                                    min="0"
+                                                    step="0.01"
+                                                    placeholder="0.00"
+                                                    className="pl-5"
+                                                    value={item.allocatedAmount}
+                                                    onChange={(e) => handleUpdateLineItem(item.id, 'allocatedAmount', e.target.value)}
+                                                />
+                                            </div>
+                                        </div>
+                                        <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="icon"
+                                            onClick={() => handleRemoveLineItem(item.id)}
+                                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                        >
+                                            <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                    </div>
+                                ))}
+
+                                {/* Summary */}
+                                <div className="border-t pt-2 mt-3 space-y-1 text-sm">
+                                    <div className="flex justify-between">
+                                        <span className="text-gray-600">Total Allocated:</span>
+                                        <span className="font-medium">${totalAllocated.toFixed(2)}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span className="text-gray-600">Budget Amount:</span>
+                                        <span className="font-medium">${budgetAmount.toFixed(2)}</span>
+                                    </div>
+                                    <div className="flex justify-between border-t pt-1">
+                                        <span className="text-gray-600">Remaining:</span>
+                                        <span className={`font-semibold ${remaining < 0 ? 'text-red-600' : 'text-green-600'}`}>
+                                            ${remaining.toFixed(2)}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {lineItems.length === 0 && (
+                            <p className="text-sm text-gray-500 italic">
+                                No line items added. Budget will apply to all expenses.
+                            </p>
+                        )}
                     </div>
 
                     <DialogFooter>
