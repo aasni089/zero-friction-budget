@@ -184,29 +184,37 @@ export function ExpenseInput() {
       {/* Main Content - Centered */}
       <div className="flex-1 flex items-center justify-center px-4">
         <div className="w-full max-w-2xl">
+          {/* Greeting Text */}
+          <div className="text-center mb-6">
+            <h1 className="text-3xl font-semibold text-gray-900 mb-2">
+              Track an expense
+            </h1>
+            <p className="text-gray-500">
+              Enter the amount you spent and we'll help you log it
+            </p>
+          </div>
+
           {/* Main Amount Input - ChatGPT Style */}
           <div className="mb-8">
-            <div className="flex items-center gap-3">
-              <div className="relative flex-1">
-                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-2xl font-semibold text-gray-500">
-                  $
-                </span>
-                <Input
-                  ref={amountInputRef}
-                  type="text"
-                  inputMode="decimal"
-                  placeholder="0.00"
-                  value={amount}
-                  onChange={handleAmountChange}
-                  disabled={isSubmitting}
-                  className="pl-10 pr-4 py-6 text-3xl font-semibold border-2 focus:border-blue-500 transition-colors"
-                />
-              </div>
+            <div className="relative">
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-2xl font-semibold text-gray-500 pointer-events-none">
+                $
+              </span>
+              <Input
+                ref={amountInputRef}
+                type="text"
+                inputMode="decimal"
+                placeholder="0.00"
+                value={amount}
+                onChange={handleAmountChange}
+                disabled={isSubmitting}
+                className="pl-10 pr-14 py-6 text-3xl font-semibold border-2 focus:border-blue-500 transition-colors"
+              />
               <Button
                 onClick={handleAmountSubmit}
                 disabled={!isFormValid || isSubmitting}
-                size="lg"
-                className="h-[60px] px-6 bg-blue-600 hover:bg-blue-700"
+                size="icon"
+                className="absolute right-2 top-1/2 -translate-y-1/2 h-10 w-10 rounded-lg bg-blue-600 hover:bg-blue-700"
               >
                 {isSubmitting ? (
                   <Loader2 className="h-5 w-5 animate-spin" />
@@ -215,9 +223,6 @@ export function ExpenseInput() {
                 )}
               </Button>
             </div>
-            <p className="text-sm text-gray-500 mt-2 text-center">
-              Enter an amount and press Enter or click the arrow
-            </p>
           </div>
         </div>
       </div>
