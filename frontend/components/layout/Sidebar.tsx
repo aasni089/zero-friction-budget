@@ -114,12 +114,12 @@ export function Sidebar({ className }: SidebarProps) {
         )}
       >
         {/* Logo Section */}
-        <div className="p-4 border-b border-sidebar-border">
-          <div className={cn('flex items-center', sidebarCollapsed ? 'justify-center' : 'justify-start')}>
-            <div className="text-3xl">💰</div>
-            {!sidebarCollapsed && (
-              <span className="ml-2 text-lg font-bold text-sidebar-foreground">Budget</span>
-            )}
+        {/* Logo Section */}
+        <div className="p-4 border-b border-sidebar-border flex justify-center">
+          <div className={cn('flex items-center justify-center w-full')}>
+            <div className="relative h-10 w-10">
+              <img src="/logo.png" alt="Logo" className="object-contain" />
+            </div>
           </div>
         </div>
 

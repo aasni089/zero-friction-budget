@@ -5,6 +5,7 @@ import { api } from './client';
 export interface Expense {
   id: string;
   amount: number;
+  type: 'INCOME' | 'EXPENSE' | 'TRANSFER';
   description?: string;
   date: string;
   categoryId?: string;

@@ -4,8 +4,10 @@ import { useMemo } from 'react';
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 import { Card } from '@/components/ui/card';
 
+import { Expense } from '@/lib/api/expense-client';
+
 interface CategoryBreakdownChartProps {
-    expenses: any[];
+    expenses: Expense[];
 }
 
 export function CategoryBreakdownChart({ expenses }: CategoryBreakdownChartProps) {
@@ -77,7 +79,7 @@ export function CategoryBreakdownChart({ expenses }: CategoryBreakdownChartProps
                             verticalAlign="middle"
                             align="right"
                             iconType="circle"
-                            formatter={(value, entry: any) => (
+                            formatter={(value) => (
                                 <span className="text-sm text-muted-foreground ml-2">{value}</span>
                             )}
                         />

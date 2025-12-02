@@ -26,6 +26,7 @@ const updateBudgetSchema = z.object({
   startDate: z.string().datetime().or(z.date()).optional(),
   endDate: z.string().datetime().or(z.date()).optional().nullable(),
   categoryId: z.string().cuid().optional().nullable(),
+  isPrimary: z.boolean().optional(),
 });
 
 // ============================================================================
@@ -174,6 +175,19 @@ exports.createBudget = async (req, res) => {
     // Broadcast real-time event
     await broadcastBudgetUpdated(budget.householdId, budget, 'created');
 
+    // Auto-set as primary if it's the first budget for the household
+    const budgetCount = await prisma.budget.count({
+      where: { householdId: validatedData.householdId }
+    });
+
+    if (budgetCount === 1) {
+      // This is the first budget, make it primary
+      await prisma.household.update({
+        where: { id: validatedData.householdId },
+        data: { primaryBudgetId: budget.id }
+      });
+    }
+
     res.status(201).json({
       success: true,
       data: budget,
@@ -283,13 +297,20 @@ exports.listBudgets = async (req, res) => {
       },
     });
 
-    // Calculate progress for each budget
+    // Get household to check primary budget
+    const household = householdId ? await prisma.household.findUnique({
+      where: { id: householdId },
+      select: { primaryBudgetId: true }
+    }) : null;
+
+    // Calculate progress for each budget and add isPrimary flag
     const budgetsWithProgress = await Promise.all(
       budgets.map(async (budget) => {
         const progress = await calculateBudgetProgress(budget.id);
         return {
           ...budget,
           progress,
+          isPrimary: household ? household.primaryBudgetId === budget.id : false,
         };
       })
     );
@@ -484,6 +505,29 @@ exports.updateBudget = async (req, res) => {
             categoryId: cat.categoryId,
             allocatedAmount: cat.allocatedAmount,
           })),
+        });
+      }
+    }
+
+    // Handle isPrimary flag
+    if (req.body.isPrimary === true) {
+      // Update the household to set this budget as primary
+      await prisma.household.update({
+        where: { id: budget.householdId },
+        data: { primaryBudgetId: id }
+      });
+    } else if (req.body.isPrimary === false) {
+      // Check if this budget is currently primary
+      const household = await prisma.household.findUnique({
+        where: { id: budget.householdId },
+        select: { primaryBudgetId: true }
+      });
+
+      if (household?.primaryBudgetId === id) {
+        // Unset primary budget
+        await prisma.household.update({
+          where: { id: budget.householdId },
+          data: { primaryBudgetId: null }
         });
       }
     }
@@ -821,6 +865,108 @@ exports.rolloverBudget = async (req, res) => {
       error: {
         message: 'Failed to rollover budget',
       },
+    });
+  }
+};
+
+/**
+ * @route   GET /budgets/primary
+ * @desc    Get the primary budget for a household
+ * @access  Private
+ */
+exports.getPrimaryBudget = async (req, res) => {
+  try {
+    const { householdId } = req.query;
+    const userId = req.user.id;
+
+    if (!householdId) {
+      return res.status(400).json({
+        success: false,
+        error: { message: 'householdId is required' }
+      });
+    }
+
+    // Verify user is a member
+    const membership = await prisma.householdMember.findUnique({
+      where: {
+        householdId_userId: { householdId, userId }
+      }
+    });
+
+    if (!membership) {
+      return res.status(403).json({
+        success: false,
+        error: { message: 'Access denied' }
+      });
+    }
+
+    // Get household with primary budget
+    const household = await prisma.household.findUnique({
+      where: { id: householdId },
+      include: {
+        primaryBudget: {
+          include: {
+            category: true,
+            categories: {
+              include: {
+                category: {
+                  select: {
+                    id: true,
+                    name: true,
+                    icon: true,
+                    color: true
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    });
+
+    if (!household?.primaryBudget) {
+      return res.json({
+        success: true,
+        data: null
+      });
+    }
+
+    // Calculate progress for each line item
+    const budgetWithProgress = {
+      ...household.primaryBudget,
+      isPrimary: true,
+      lineItems: await Promise.all(
+        household.primaryBudget.categories.map(async (lineItem) => {
+          const expenses = await prisma.expense.findMany({
+            where: {
+              householdId,
+              categoryId: lineItem.categoryId,
+              type: 'EXPENSE'
+            }
+          });
+
+          const spent = expenses.reduce((sum, e) => sum + e.amount, 0);
+          const percentage = (spent / lineItem.allocatedAmount) * 100;
+
+          return {
+            ...lineItem,
+            spent,
+            remaining: lineItem.allocatedAmount - spent,
+            percentage: Math.round(percentage * 100) / 100
+          };
+        })
+      )
+    };
+
+    res.json({
+      success: true,
+      data: budgetWithProgress
+    });
+  } catch (error) {
+    logger.error('Error getting primary budget:', error);
+    res.status(500).json({
+      success: false,
+      error: { message: 'Failed to get primary budget' }
     });
   }
 };

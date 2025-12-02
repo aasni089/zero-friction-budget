@@ -80,6 +80,30 @@ router.get('/', authenticateToken, budgetController.listBudgets);
 
 /**
  * @swagger
+ * /budgets/primary:
+ *   get:
+ *     summary: Get the primary budget for a household
+ *     tags: [Budgets]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: householdId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Primary budget with line items and progress
+ *       400:
+ *         description: householdId is required
+ *       403:
+ *         description: Not a member of household
+ */
+router.get('/primary', authenticateToken, budgetController.getPrimaryBudget);
+
+/**
+ * @swagger
  * /budgets/{id}:
  *   get:
  *     summary: Get budget details with progress

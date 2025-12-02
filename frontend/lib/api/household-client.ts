@@ -6,6 +6,7 @@ export interface Household {
   id: string;
   name: string;
   ownerId: string;
+  primaryBudgetId?: string | null;
   createdAt: string;
   updatedAt: string;
   owner?: {

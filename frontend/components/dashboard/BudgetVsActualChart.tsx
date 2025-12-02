@@ -13,8 +13,10 @@ import {
 } from 'recharts';
 import { Card } from '@/components/ui/card';
 
+import { Budget } from '@/lib/api/budget-client';
+
 interface BudgetVsActualChartProps {
-    budgets: any[];
+    budgets: (Budget & { spent: number })[];
 }
 
 export function BudgetVsActualChart({ budgets }: BudgetVsActualChartProps) {

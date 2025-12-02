@@ -13,9 +13,18 @@ import {
 import { Card } from '@/components/ui/card';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay } from 'date-fns';
 
+import { Expense } from '@/lib/api/expense-client';
+
 interface SpendingTrendChartProps {
-    expenses: any[];
+    expenses: Expense[];
     currentDate: Date;
+}
+
+interface ChartDataPoint {
+    date: string;
+    amount: number;
+    cumulative: number;
+    fullDate: Date;
 }
 
 export function SpendingTrendChart({ expenses, currentDate }: SpendingTrendChartProps) {
@@ -24,21 +33,21 @@ export function SpendingTrendChart({ expenses, currentDate }: SpendingTrendChart
         const end = endOfMonth(currentDate);
         const days = eachDayOfInterval({ start, end });
 
-        let cumulative = 0;
-        return days.map((day) => {
+        return days.reduce((acc, day) => {
             const dayExpenses = expenses.filter((e) =>
                 isSameDay(new Date(e.date), day) && e.type === 'EXPENSE'
             );
             const dayTotal = dayExpenses.reduce((sum, e) => sum + e.amount, 0);
-            cumulative += dayTotal;
+            const previousCumulative = acc.length > 0 ? acc[acc.length - 1].cumulative : 0;
 
-            return {
+            acc.push({
                 date: format(day, 'MMM d'),
                 amount: dayTotal,
-                cumulative: cumulative,
+                cumulative: previousCumulative + dayTotal,
                 fullDate: day,
-            };
-        });
+            });
+            return acc;
+        }, [] as ChartDataPoint[]);
     }, [expenses, currentDate]);
 
     // Filter out future dates if current month is selected to avoid flat line at end

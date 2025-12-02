@@ -6,7 +6,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { EditBudgetDialog } from './EditBudgetDialog';
-import { Pencil, Trash2, AlertCircle } from 'lucide-react';
+import { Pencil, Trash2, AlertCircle, Star } from 'lucide-react';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -25,9 +25,10 @@ import { cn } from '@/lib/utils';
 
 interface BudgetCardProps {
     budget: Budget;
+    onTogglePrimary?: (budgetId: string, isPrimary: boolean) => void;
 }
 
-export function BudgetCard({ budget }: BudgetCardProps) {
+export function BudgetCard({ budget, onTogglePrimary }: BudgetCardProps) {
     const { budgets, setBudgets } = useUiStore();
     const [isEditOpen, setIsEditOpen] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
@@ -80,6 +81,20 @@ export function BudgetCard({ budget }: BudgetCardProps) {
                             </p>
                         </div>
                         <div className="flex gap-2">
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => onTogglePrimary?.(budget.id, !budget.isPrimary)}
+                                className="text-muted-foreground hover:text-yellow-500"
+                                title={budget.isPrimary ? "Remove as primary budget" : "Set as primary budget"}
+                            >
+                                <Star
+                                    className={`h-4 w-4 ${budget.isPrimary
+                                            ? 'fill-yellow-400 text-yellow-400'
+                                            : 'text-gray-400'
+                                        }`}
+                                />
+                            </Button>
                             <Button
                                 variant="ghost"
                                 size="icon"

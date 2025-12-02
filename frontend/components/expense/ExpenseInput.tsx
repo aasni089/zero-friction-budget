@@ -14,7 +14,11 @@ import { format, isToday, isYesterday } from 'date-fns';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
-export function ExpenseInput() {
+interface ExpenseInputProps {
+  primaryBudgetId?: string;
+}
+
+export function ExpenseInput({ primaryBudgetId }: ExpenseInputProps = {}) {
   const { currentHouseholdId } = useUiStore();
   const { user } = useAuthStore();
 
@@ -41,7 +45,7 @@ export function ExpenseInput() {
       setIsLoadingExpenses(true);
       const response = await getExpenses({
         householdId: currentHouseholdId,
-        limit: 10,
+        limit: 5,
       });
       setRecentExpenses(response.expenses || []);
     } catch (error: any) {
@@ -64,7 +68,7 @@ export function ExpenseInput() {
         if (prev.find(e => e.id === expense.id)) {
           return prev;
         }
-        return [expense, ...prev.slice(0, 9)];
+        return [expense, ...prev.slice(0, 4)];
       });
     },
   });
@@ -125,7 +129,7 @@ export function ExpenseInput() {
       toast.success(`Expense added: $${pendingAmount.toFixed(2)}`);
 
       // Optimistic update - add to recent expenses
-      setRecentExpenses((prev) => [response, ...prev.slice(0, 9)]);
+      setRecentExpenses((prev) => [response, ...prev.slice(0, 4)]);
 
       // Clear form
       setAmount('');
@@ -231,7 +235,7 @@ export function ExpenseInput() {
         </div>
 
         {/* Recent Expenses - Minimalist List */}
-        <div className="space-y-4 pt-8">
+        <div className="space-y-4 pt-4">
           <div className="flex items-center justify-between px-2">
             <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Recent Activity</h3>
           </div>
@@ -241,7 +245,7 @@ export function ExpenseInput() {
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
             </div>
           ) : recentExpenses.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground">
+            <div className="text-center py-8 text-muted-foreground">
               <p>No recent activity</p>
             </div>
           ) : (
@@ -250,35 +254,36 @@ export function ExpenseInput() {
                 const expenses = groupedExpenses[dateLabel];
                 if (!expenses || expenses.length === 0) return null;
 
+                // Limit total items shown to 5 across all groups
+                // This logic is a bit simplified for display purposes
                 return (
                   <div key={dateLabel} className="space-y-2">
                     <h4 className="text-xs font-medium text-muted-foreground/70 px-2">{dateLabel}</h4>
                     {expenses.map((expense) => (
                       <div
                         key={expense.id}
-                        className="group flex items-center justify-between p-4 rounded-xl hover:bg-muted/50 transition-colors border border-transparent hover:border-border/50"
+                        className="group flex items-center justify-between p-3 rounded-xl hover:bg-muted/50 transition-colors border border-transparent hover:border-border/50"
                       >
-                        <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-3">
                           <div
-                            className="w-10 h-10 rounded-full flex items-center justify-center text-lg shadow-sm"
+                            className="w-8 h-8 rounded-full flex items-center justify-center text-sm shadow-sm"
                             style={{
                               backgroundColor: expense.category?.color ? `${expense.category.color}20` : 'var(--muted)',
                               color: expense.category?.color || 'var(--foreground)'
                             }}
                           >
-                            {/* We could add icons here later based on category */}
                             {expense.category?.name?.[0] || '?'}
                           </div>
                           <div>
-                            <p className="font-medium text-foreground">
+                            <p className="font-medium text-foreground text-sm">
                               {expense.description || expense.category?.name || 'Expense'}
                             </p>
-                            <p className="text-sm text-muted-foreground">
+                            <p className="text-xs text-muted-foreground">
                               {expense.category?.name || 'Uncategorized'}
                             </p>
                           </div>
                         </div>
-                        <span className="font-semibold text-foreground">
+                        <span className="font-semibold text-foreground text-sm">
                           ${expense.amount.toFixed(2)}
                         </span>
                       </div>
@@ -296,6 +301,7 @@ export function ExpenseInput() {
         open={isDetailsDialogOpen}
         onOpenChange={setIsDetailsDialogOpen}
         amount={pendingAmount}
+        primaryBudgetId={primaryBudgetId}
         onSubmit={handleExpenseSubmit}
       />
     </div>

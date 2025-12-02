@@ -36,6 +36,7 @@ interface ExpenseDetailsDialogProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     amount: number;
+    primaryBudgetId?: string;
     onSubmit: (details: {
         budgetId?: string;
         categoryId?: string;
@@ -48,6 +49,7 @@ export function ExpenseDetailsDialog({
     open,
     onOpenChange,
     amount,
+    primaryBudgetId,
     onSubmit,
 }: ExpenseDetailsDialogProps) {
     const { budgets } = useUiStore();
@@ -59,15 +61,18 @@ export function ExpenseDetailsDialog({
     const [date, setDate] = useState<Date>(new Date());
     const [isCalendarOpen, setIsCalendarOpen] = useState(false);
 
-    // Reset form when dialog closes
+    // Reset form when dialog closes, or auto-select primary budget when opening
     useEffect(() => {
         if (!open) {
             setBudgetId('');
             setCategoryId('');
             setDescription('');
             setDate(new Date());
+        } else if (primaryBudgetId) {
+            // Auto-select primary budget when dialog opens
+            setBudgetId(primaryBudgetId);
         }
-    }, [open]);
+    }, [open, primaryBudgetId]);
 
     // Reset category when budget changes
     useEffect(() => {

@@ -2,15 +2,18 @@
 
 import { useEffect, useState } from 'react';
 import { useUiStore } from '@/lib/stores/ui';
-import { getBudgets, type Budget } from '@/lib/api/budget-client';
+import { getBudgets, getPrimaryBudget, type Budget } from '@/lib/api/budget-client';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/dashboard/EmptyState';
 import { ExpenseInput } from '@/components/expense/ExpenseInput';
+import { LineItemProgressBar } from '@/components/budget/LineItemProgressBar';
 
 export default function ExpensePage() {
   const { currentHouseholdId, households, budgets, budgetsLoading, setBudgets, setBudgetsLoading } = useUiStore();
   const [error, setError] = useState<string | null>(null);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
+  const [primaryBudget, setPrimaryBudget] = useState<any>(null);
+  const [loadingPrimaryBudget, setLoadingPrimaryBudget] = useState(true);
 
   // Wait for households to be loaded first
   useEffect(() => {
@@ -52,6 +55,28 @@ export default function ExpensePage() {
 
     fetchBudgets();
   }, [currentHouseholdId, isInitialLoad, setBudgets, setBudgetsLoading]);
+
+  // Fetch primary budget
+  useEffect(() => {
+    const fetchPrimaryBudget = async () => {
+      if (!currentHouseholdId || isInitialLoad) {
+        setLoadingPrimaryBudget(false);
+        return;
+      }
+
+      try {
+        setLoadingPrimaryBudget(true);
+        const budget = await getPrimaryBudget(currentHouseholdId);
+        setPrimaryBudget(budget);
+      } catch (error) {
+        console.error('Failed to fetch primary budget:', error);
+      } finally {
+        setLoadingPrimaryBudget(false);
+      }
+    };
+
+    fetchPrimaryBudget();
+  }, [currentHouseholdId, isInitialLoad]);
 
   // Loading state - only show skeleton during initial load
   // After that, rely on component-level loading states
@@ -95,8 +120,31 @@ export default function ExpensePage() {
 
   // All checks passed: show expense input
   return (
-    <div className="min-h-screen">
-      <ExpenseInput />
+    <div className="min-h-screen flex flex-col items-center pt-8 px-4">
+      <div className="w-full max-w-xl space-y-6">
+        <ExpenseInput primaryBudgetId={primaryBudget?.id} />
+
+        {/* Primary Budget Progress */}
+        {!loadingPrimaryBudget && primaryBudget && primaryBudget.lineItems && (
+          <div className="bg-white p-6 rounded-2xl shadow-sm border border-border/50 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-100">
+            <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-4">
+              {primaryBudget.name} Progress
+            </h3>
+            <div className="space-y-4">
+              {primaryBudget.lineItems.map((lineItem: any) => (
+                <LineItemProgressBar
+                  key={lineItem.id}
+                  categoryName={lineItem.category.name}
+                  categoryIcon={lineItem.category.icon}
+                  allocated={lineItem.allocatedAmount}
+                  spent={lineItem.spent}
+                  color={lineItem.category.color}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

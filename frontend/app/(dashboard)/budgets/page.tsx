@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useUiStore } from '@/lib/stores/ui';
-import { getBudgets, type Budget } from '@/lib/api/budget-client';
+import { getBudgets, type Budget, setPrimaryBudget } from '@/lib/api/budget-client';
 import { useRealtime } from '@/hooks/useRealtime';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -18,6 +18,7 @@ import {
 import { Plus, ArrowLeft } from 'lucide-react';
 import { CreateBudgetDialog } from '@/components/budget/CreateBudgetDialog';
 import { BudgetCard } from '@/components/budget/BudgetCard';
+import { toast } from 'sonner';
 
 export default function BudgetsPage() {
   const router = useRouter();
@@ -89,6 +90,22 @@ export default function BudgetsPage() {
       }
     },
   });
+
+  // Handle toggling primary budget
+  const handleTogglePrimary = async (budgetId: string, isPrimary: boolean) => {
+    try {
+      await setPrimaryBudget(budgetId, isPrimary);
+      toast.success(isPrimary ? 'Budget set as primary' : 'Primary budget removed');
+      // Refetch budgets to update isPrimary flags
+      if (currentHouseholdId) {
+        const response = await getBudgets(currentHouseholdId);
+        setBudgets(response || []);
+      }
+    } catch (error: any) {
+      console.error('Failed to toggle primary budget:', error);
+      toast.error(error?.message || 'Failed to update primary budget');
+    }
+  };
 
   // Refresh budgets when page becomes visible (e.g., navigating from expense page)
   useEffect(() => {
@@ -196,7 +213,11 @@ export default function BudgetsPage() {
         ) : (
           <div className="space-y-4">
             {filteredBudgets.map((budget) => (
-              <BudgetCard key={budget.id} budget={budget} />
+              <BudgetCard
+                key={budget.id}
+                budget={budget}
+                onTogglePrimary={handleTogglePrimary}
+              />
             ))}
           </div>
         )}

@@ -12,7 +12,9 @@ export interface Budget {
   householdId: string;
   createdAt: string;
   updatedAt: string;
+  isPrimary?: boolean;
   categories?: BudgetCategory[];
+  lineItems?: BudgetLineItem[];
   _count?: {
     expenses: number;
     categories: number;
@@ -31,6 +33,22 @@ export interface BudgetCategory {
   categoryId: string;
   allocatedAmount: number;
   category?: {
+    id: string;
+    name: string;
+    icon?: string;
+    color?: string;
+  };
+}
+
+export interface BudgetLineItem {
+  id: string;
+  budgetId: string;
+  categoryId: string;
+  allocatedAmount: number;
+  spent: number;
+  remaining: number;
+  percentage: number;
+  category: {
     id: string;
     name: string;
     icon?: string;
@@ -86,4 +104,14 @@ export async function updateBudget(budgetId: string, data: UpdateBudgetData) {
 // Delete budget
 export async function deleteBudget(budgetId: string) {
   return api.delete<{ message: string }>(`/budgets/${budgetId}`);
+}
+
+// Get primary budget for household
+export async function getPrimaryBudget(householdId: string) {
+  return api.get<Budget | null>(`/budgets/primary?householdId=${householdId}`);
+}
+
+// Set budget as primary
+export async function setPrimaryBudget(budgetId: string, isPrimary: boolean) {
+  return api.patch<Budget>(`/budgets/${budgetId}`, { isPrimary });
 }
