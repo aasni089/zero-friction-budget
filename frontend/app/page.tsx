@@ -29,7 +29,7 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-2">
-              <TrendingUp className="h-8 w-8 text-primary" />
+              <img src="/logo.svg" alt="Logo" className="h-12 w-12" />
               <span className="text-xl font-bold">Zero Friction Budget</span>
             </div>
             <div className="flex items-center space-x-4">

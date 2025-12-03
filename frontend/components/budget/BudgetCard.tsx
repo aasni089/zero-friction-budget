@@ -26,9 +26,10 @@ import { cn } from '@/lib/utils';
 interface BudgetCardProps {
     budget: Budget;
     onTogglePrimary?: (budgetId: string, isPrimary: boolean) => void;
+    isUpdating?: boolean;
 }
 
-export function BudgetCard({ budget, onTogglePrimary }: BudgetCardProps) {
+export function BudgetCard({ budget, onTogglePrimary, isUpdating }: BudgetCardProps) {
     const { budgets, setBudgets } = useUiStore();
     const [isEditOpen, setIsEditOpen] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
@@ -87,13 +88,18 @@ export function BudgetCard({ budget, onTogglePrimary }: BudgetCardProps) {
                                 onClick={() => onTogglePrimary?.(budget.id, !budget.isPrimary)}
                                 className="text-muted-foreground hover:text-yellow-500"
                                 title={budget.isPrimary ? "Remove as primary budget" : "Set as primary budget"}
+                                disabled={isUpdating}
                             >
-                                <Star
-                                    className={`h-4 w-4 ${budget.isPrimary
+                                {isUpdating ? (
+                                    <div className="h-4 w-4 border-2 border-gray-300 border-t-yellow-500 rounded-full animate-spin" />
+                                ) : (
+                                    <Star
+                                        className={`h-4 w-4 ${budget.isPrimary
                                             ? 'fill-yellow-400 text-yellow-400'
                                             : 'text-gray-400'
-                                        }`}
-                                />
+                                            }`}
+                                    />
+                                )}
                             </Button>
                             <Button
                                 variant="ghost"
@@ -157,11 +163,11 @@ export function BudgetCard({ budget, onTogglePrimary }: BudgetCardProps) {
                         <div className="flex justify-between items-center text-xs">
                             <span className={cn(
                                 "font-medium",
-                                progress.remaining < 0 ? "text-destructive" : "text-muted-foreground"
+                                progress.remaining < 0 ? "text-destructive" : "text-green-600"
                             )}>
                                 {progress.remaining < 0
                                     ? `$${Math.abs(progress.remaining).toFixed(2)} over budget`
-                                    : `$${progress.remaining.toFixed(2)} left`
+                                    : `$${progress.remaining.toFixed(2)} under budget`
                                 }
                             </span>
                             <span className="text-muted-foreground">
@@ -174,25 +180,55 @@ export function BudgetCard({ budget, onTogglePrimary }: BudgetCardProps) {
                     {budget.categories && budget.categories.length > 0 && (
                         <div className="pt-4 border-t border-border/50 space-y-3">
                             <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Allocations</h4>
-                            <div className="space-y-2">
-                                {budget.categories.map((cat) => (
-                                    <div key={cat.id} className="flex justify-between text-sm items-center">
-                                        <div className="flex items-center gap-2">
-                                            {cat.category?.color && (
-                                                <div
-                                                    className="w-2 h-2 rounded-full ring-1 ring-border"
-                                                    style={{ backgroundColor: cat.category.color }}
-                                                />
-                                            )}
-                                            <span className="text-foreground/80">
-                                                {cat.category?.name || 'Unknown'}
-                                            </span>
+                            <div className="space-y-3">
+                                {budget.categories.map((cat) => {
+                                    const spent = cat.spent || 0;
+                                    const allocated = cat.allocatedAmount;
+                                    const percentage = allocated > 0 ? (spent / allocated) * 100 : 0;
+                                    const remaining = allocated - spent;
+
+                                    // Progress bar color based on usage
+                                    let progressColor = 'bg-green-500';
+                                    if (percentage >= 90) progressColor = 'bg-red-500';
+                                    else if (percentage >= 70) progressColor = 'bg-yellow-500';
+
+                                    return (
+                                        <div key={cat.id} className="space-y-1.5">
+                                            <div className="flex justify-between text-sm items-center">
+                                                <div className="flex items-center gap-2">
+                                                    {cat.category?.color && (
+                                                        <div
+                                                            className="w-2 h-2 rounded-full ring-1 ring-border"
+                                                            style={{ backgroundColor: cat.category.color }}
+                                                        />
+                                                    )}
+                                                    <span className="text-foreground/80">
+                                                        {cat.category?.name || 'Unknown'}
+                                                    </span>
+                                                </div>
+                                                <span className="font-medium text-foreground">
+                                                    ${cat.allocatedAmount.toFixed(2)}
+                                                </span>
+                                            </div>
+
+                                            {/* Compact Progress Bar */}
+                                            <div className="space-y-1">
+                                                <div className="w-full bg-secondary h-1.5 rounded-full overflow-hidden">
+                                                    <div
+                                                        className={`h-full transition-all ${progressColor}`}
+                                                        style={{ width: `${Math.min(percentage, 100)}%` }}
+                                                    />
+                                                </div>
+                                                <div className="flex justify-between text-xs">
+                                                    <span className="text-muted-foreground">${spent.toFixed(2)} spent</span>
+                                                    <span className={cn("font-medium", remaining < 0 ? 'text-red-600' : 'text-green-600')}>
+                                                        ${Math.abs(remaining).toFixed(2)} {remaining < 0 ? 'over budget' : 'under budget'}
+                                                    </span>
+                                                </div>
+                                            </div>
                                         </div>
-                                        <span className="font-medium text-foreground">
-                                            ${cat.allocatedAmount.toFixed(2)}
-                                        </span>
-                                    </div>
-                                ))}
+                                    );
+                                })}
                             </div>
                         </div>
                     )}

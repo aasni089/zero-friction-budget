@@ -1,10 +1,8 @@
-const { PrismaClient } = require('@prisma/client');
 const { z } = require('zod');
 const logger = require('../config/logger');
 const { sendEmail } = require('../utils/email');
 const crypto = require('crypto');
-
-const prisma = new PrismaClient();
+const prisma = require('../config/database'); // Use shared singleton instance
 
 // ============================================================================
 // VALIDATION SCHEMAS

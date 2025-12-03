@@ -16,9 +16,11 @@ import { cn } from '@/lib/utils';
 
 interface ExpenseInputProps {
   primaryBudgetId?: string;
+  onExpenseCreated?: () => void | Promise<void>;
+  children?: React.ReactNode;
 }
 
-export function ExpenseInput({ primaryBudgetId }: ExpenseInputProps = {}) {
+export function ExpenseInput({ primaryBudgetId, onExpenseCreated, children }: ExpenseInputProps = {}) {
   const { currentHouseholdId } = useUiStore();
   const { user } = useAuthStore();
 
@@ -134,6 +136,11 @@ export function ExpenseInput({ primaryBudgetId }: ExpenseInputProps = {}) {
       // Clear form
       setAmount('');
       amountInputRef.current?.focus();
+
+      // Call parent callback to refresh budget progress
+      if (onExpenseCreated) {
+        await onExpenseCreated();
+      }
     } catch (error: any) {
       console.error('Failed to create expense:', error);
       toast.error('Failed to add expense. Please try again.');
@@ -203,7 +210,7 @@ export function ExpenseInput({ primaryBudgetId }: ExpenseInputProps = {}) {
         <div className="relative group">
           <div className="absolute inset-0 bg-primary/5 rounded-2xl blur-xl transition-all group-hover:bg-primary/10" />
           <div className="relative bg-card rounded-2xl shadow-lg border border-border/50 p-2 flex items-center transition-all focus-within:ring-4 focus-within:ring-primary/10 focus-within:border-primary/50">
-            <span className="pl-6 text-3xl font-medium text-muted-foreground select-none">
+            <span className="pl-4 text-2xl font-medium text-muted-foreground select-none">
               $
             </span>
             <input
@@ -214,14 +221,14 @@ export function ExpenseInput({ primaryBudgetId }: ExpenseInputProps = {}) {
               value={amount}
               onChange={handleAmountChange}
               disabled={isSubmitting}
-              className="w-full bg-transparent border-none text-4xl font-semibold p-4 focus:ring-0 placeholder:text-muted-foreground/30"
+              className="w-full bg-transparent border-none outline-none text-3xl font-semibold p-3 focus:ring-0 placeholder:text-muted-foreground/30"
             />
             <Button
               onClick={handleAmountSubmit}
               disabled={!isFormValid || isSubmitting}
               size="icon"
               className={cn(
-                "h-12 w-12 rounded-xl mr-2 transition-all duration-300",
+                "h-10 w-10 rounded-xl mr-1 transition-all duration-300",
                 isFormValid ? "bg-primary text-primary-foreground shadow-md hover:scale-105" : "bg-muted text-muted-foreground"
               )}
             >
@@ -233,6 +240,9 @@ export function ExpenseInput({ primaryBudgetId }: ExpenseInputProps = {}) {
             </Button>
           </div>
         </div>
+
+        {/* Budget Progress or other injected content */}
+        {children}
 
         {/* Recent Expenses - Minimalist List */}
         <div className="space-y-4 pt-4">

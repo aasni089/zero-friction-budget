@@ -26,6 +26,9 @@ export const metadata: Metadata = {
     title: "Zero Friction Budget - Track Household Expenses Together",
     description: "Simple budgeting, powerful insights for families. Real-time collaboration to track household expenses and stay on budget.",
   },
+  icons: {
+    icon: "/logo.svg",
+  },
 };
 
 export default function RootLayout({

@@ -109,17 +109,17 @@ export function Sidebar({ className }: SidebarProps) {
     <TooltipProvider>
       <aside
         className={cn(
-          'h-screen flex flex-col bg-sidebar border-r border-sidebar-border transition-all duration-300',
+          'h-screen flex flex-col bg-sidebar border-r border-sidebar-border transition-all duration-300 overflow-hidden',
           sidebarCollapsed ? 'w-20' : 'w-64',
           className
         )}
       >
         {/* Logo Section */}
         {/* Logo Section */}
-        <div className="p-4 border-b border-sidebar-border flex justify-center">
+        <div className="p-2 border-b border-sidebar-border flex justify-center">
           <div className={cn('flex items-center justify-center w-full')}>
-            <div className="relative h-10 w-10">
-              <img src="/logo.png" alt="Logo" className="object-contain" />
+            <div className="relative h-12 w-12">
+              <img src="/logo.svg" alt="Logo" className="object-contain" />
             </div>
           </div>
         </div>
@@ -265,8 +265,13 @@ export function Sidebar({ className }: SidebarProps) {
                   sidebarCollapsed ? 'justify-center' : 'justify-start'
                 )}
               >
-                <Icon className={cn('h-5 w-5', !sidebarCollapsed && 'mr-3')} />
-                {!sidebarCollapsed && <span>{item.name}</span>}
+                <Icon className={cn('h-5 w-5 flex-shrink-0', !sidebarCollapsed && 'mr-3')} />
+                <span className={cn(
+                  "whitespace-nowrap transition-opacity duration-300",
+                  sidebarCollapsed ? "opacity-0 w-0" : "opacity-100"
+                )}>
+                  {item.name}
+                </span>
               </Link>
             );
 
@@ -322,10 +327,6 @@ export function Sidebar({ className }: SidebarProps) {
                     </div>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={handleProfileClick}>
-                    <User className="mr-2 h-4 w-4" />
-                    <span>Profile</span>
-                  </DropdownMenuItem>
                   <DropdownMenuItem onClick={handleSettingsClick}>
                     <Settings className="mr-2 h-4 w-4" />
                     <span>Settings</span>
@@ -367,10 +368,6 @@ export function Sidebar({ className }: SidebarProps) {
                     </div>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={handleProfileClick}>
-                    <User className="mr-2 h-4 w-4" />
-                    <span>Profile</span>
-                  </DropdownMenuItem>
                   <DropdownMenuItem onClick={handleSettingsClick}>
                     <Settings className="mr-2 h-4 w-4" />
                     <span>Settings</span>

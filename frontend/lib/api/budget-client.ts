@@ -32,6 +32,7 @@ export interface BudgetCategory {
   budgetId: string;
   categoryId: string;
   allocatedAmount: number;
+  spent?: number; // Amount spent in this category for this budget
   category?: {
     id: string;
     name: string;

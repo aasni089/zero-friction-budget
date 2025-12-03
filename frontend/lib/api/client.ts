@@ -101,6 +101,12 @@ export async function apiClient<T = any>(
 
   try {
     const result = await requestPromise;
+
+    // If this was a mutation (POST, PUT, PATCH, DELETE), clear the cache
+    if (method !== 'GET') {
+      responseCache.clear();
+    }
+
     return result;
   } finally {
     // Clean up pending request

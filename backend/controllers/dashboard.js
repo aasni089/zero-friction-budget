@@ -1,9 +1,7 @@
-const { PrismaClient } = require('@prisma/client');
 const { z } = require('zod');
 const logger = require('../config/logger');
 const NodeCache = require('node-cache');
-
-const prisma = new PrismaClient();
+const prisma = require('../config/database'); // Use shared singleton instance
 
 // Initialize cache with 5 minute TTL and check period of 60 seconds
 const cache = new NodeCache({ stdTTL: 300, checkperiod: 60 });

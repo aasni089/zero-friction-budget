@@ -135,7 +135,7 @@ export function CreateBudgetDialog({
         } finally {
             setIsCreatingCategory(false);
         }
-    };
+    }
 
     // Calculate total allocated
     const totalAllocated = lineItems.reduce((sum, item) => {
@@ -145,6 +145,14 @@ export function CreateBudgetDialog({
 
     const budgetAmount = parseFloat(amount) || 0;
     const remaining = budgetAmount - totalAllocated;
+    const isOverBudget = budgetAmount > 0 && totalAllocated > budgetAmount;
+
+    // Auto-increase budget if not set and line items are added
+    useEffect(() => {
+        if (lineItems.length > 0 && (!amount || budgetAmount === 0)) {
+            setAmount(totalAllocated.toFixed(2));
+        }
+    }, [totalAllocated, lineItems.length, amount, budgetAmount]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -440,6 +448,13 @@ export function CreateBudgetDialog({
                                             ${remaining.toFixed(2)}
                                         </span>
                                     </div>
+
+                                    {/* Warning when over budget */}
+                                    {isOverBudget && (
+                                        <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded-md text-xs mt-2">
+                                            ⚠️ Allocated amount exceeds total budget!
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         )}

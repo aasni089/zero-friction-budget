@@ -29,6 +29,10 @@ interface UiState {
   setBudgets: (budgets: any[]) => void;
   setBudgetsLoading: (loading: boolean) => void;
   clearBudgets: () => void;
+
+  // Global refresh trigger
+  refreshKey: number;
+  triggerRefresh: () => void;
 }
 
 export const useUiStore = create<UiState>()(
@@ -100,6 +104,10 @@ export const useUiStore = create<UiState>()(
       setBudgetsLoading: (loading) => set({ budgetsLoading: loading }),
 
       clearBudgets: () => set({ budgets: [], budgetsLoading: false }),
+
+      // Global refresh trigger
+      refreshKey: 0,
+      triggerRefresh: () => set((state) => ({ refreshKey: state.refreshKey + 1 })),
     }),
     {
       name: 'ui-storage',

@@ -1,7 +1,5 @@
-const { PrismaClient } = require('@prisma/client');
 const logger = require('../config/logger');
-
-const prisma = new PrismaClient();
+const prisma = require('../config/database'); // Use shared singleton instance
 
 /**
  * Middleware to check if user is a member of the household

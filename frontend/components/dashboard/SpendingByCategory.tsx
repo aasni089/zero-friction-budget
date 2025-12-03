@@ -20,13 +20,30 @@ const COLORS = [
 ];
 
 export function SpendingByCategory({ categories }: SpendingByCategoryProps) {
-  // Format data for the pie chart (top 5 categories)
-  const chartData = categories.slice(0, 5).map((category, index) => ({
+  // Calculate "Other" category if there are more than 5 categories
+  const top5 = categories.slice(0, 5);
+  const remaining = categories.slice(5);
+
+  const otherTotal = remaining.reduce((sum, cat) => sum + cat.total, 0);
+  const otherPercentage = remaining.reduce((sum, cat) => sum + cat.percentage, 0);
+
+  // Format data for the pie chart
+  const chartData = top5.map((category, index) => ({
     name: category.name,
     value: category.total,
     percentage: category.percentage,
     color: COLORS[index % COLORS.length],
   }));
+
+  // Add "Other" category if there are remaining categories
+  if (remaining.length > 0 && otherTotal > 0) {
+    chartData.push({
+      name: 'Other',
+      value: otherTotal,
+      percentage: otherPercentage,
+      color: '#9ca3af', // gray-400
+    });
+  }
 
   // Format currency
   const formatCurrency = (amount: number) => {
@@ -73,7 +90,9 @@ export function SpendingByCategory({ categories }: SpendingByCategoryProps) {
     <Card>
       <CardHeader>
         <CardTitle>Spending by Category</CardTitle>
-        <p className="text-sm text-gray-500">Top 5 categories by spending</p>
+        <p className="text-sm text-gray-500">
+          {remaining.length > 0 ? `Top 5 categories + ${remaining.length} other${remaining.length > 1 ? 's' : ''}` : 'Top categories by spending'}
+        </p>
       </CardHeader>
       <CardContent>
         <ResponsiveContainer width="100%" height={300}>
@@ -83,7 +102,7 @@ export function SpendingByCategory({ categories }: SpendingByCategoryProps) {
               cx="50%"
               cy="50%"
               labelLine={false}
-              label={({ name, percentage }) => `${name} (${percentage.toFixed(0)}%)`}
+              label={(entry: any) => `${entry.name} (${entry.percentage.toFixed(0)}%)`}
               outerRadius={80}
               fill="#8884d8"
               dataKey="value"

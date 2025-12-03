@@ -3,6 +3,12 @@
 import { api } from './client';
 
 export interface MonthlySummaryResponse {
+  selectedBudget: {
+    id: string;
+    name: string;
+    amount: number;
+    period: string;
+  } | null;
   period: {
     month: number;
     year: number;
@@ -19,6 +25,7 @@ export interface MonthlySummaryResponse {
     budgetSpent: number;
     budgetRemaining: number;
     budgetUsagePercentage: number;
+    totalTransactions: number;
   };
   categoryBreakdown: {
     all: CategorySpending[];
@@ -99,11 +106,15 @@ export interface BudgetHealthItem {
  */
 export async function getMonthlySummary(
   householdId: string,
-  month?: string // Format: YYYY-MM
+  month?: string, // Format: YYYY-MM
+  budgetId?: string // Optional budget ID (defaults to primary budget)
 ): Promise<MonthlySummaryResponse> {
   const params = new URLSearchParams({ householdId });
   if (month) {
     params.append('month', month);
+  }
+  if (budgetId) {
+    params.append('budgetId', budgetId);
   }
   return api.get<MonthlySummaryResponse>(`/dashboard/monthly?${params.toString()}`);
 }

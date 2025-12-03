@@ -6,14 +6,16 @@ import type { MonthlySummaryResponse } from '@/lib/api/dashboard-client';
 
 interface SummaryCardsProps {
   data: MonthlySummaryResponse;
-  transactionCount: number;
 }
 
-export function SummaryCards({ data, transactionCount }: SummaryCardsProps) {
+export function SummaryCards({ data }: SummaryCardsProps) {
   const { summary, categoryBreakdown } = data;
 
   // Get top spending category
   const topCategory = categoryBreakdown.top5[0];
+
+  // Use transaction count from summary
+  const transactionCount = summary.totalTransactions || 0;
 
   // Format currency
   const formatCurrency = (amount: number) => {
@@ -46,16 +48,14 @@ export function SummaryCards({ data, transactionCount }: SummaryCardsProps) {
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">Budget Remaining</CardTitle>
           <DollarSign
-            className={`h-4 w-4 ${
-              summary.budgetRemaining >= 0 ? 'text-green-500' : 'text-red-500'
-            }`}
+            className={`h-4 w-4 ${summary.budgetRemaining >= 0 ? 'text-green-500' : 'text-red-500'
+              }`}
           />
         </CardHeader>
         <CardContent>
           <div
-            className={`text-2xl font-bold ${
-              summary.budgetRemaining >= 0 ? 'text-green-600' : 'text-red-600'
-            }`}
+            className={`text-2xl font-bold ${summary.budgetRemaining >= 0 ? 'text-green-600' : 'text-red-600'
+              }`}
           >
             {formatCurrency(summary.budgetRemaining)}
           </div>

@@ -8,7 +8,10 @@ export default function AuthLayout({
       {/* Header */}
       <header className="border-b">
         <div className="container mx-auto px-4 py-4">
-          <h1 className="text-2xl font-bold">Zero Friction Budget</h1>
+          <div className="flex items-center space-x-2">
+            <img src="/logo.svg" alt="Logo" className="h-10 w-10" />
+            <h1 className="text-2xl font-bold">Zero Friction Budget</h1>
+          </div>
         </div>
       </header>
 

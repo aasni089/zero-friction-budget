@@ -19,15 +19,19 @@ import { Plus, ArrowLeft } from 'lucide-react';
 import { CreateBudgetDialog } from '@/components/budget/CreateBudgetDialog';
 import { BudgetCard } from '@/components/budget/BudgetCard';
 import { toast } from 'sonner';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export default function BudgetsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { currentHouseholdId, budgets, budgetsLoading, setBudgets, setBudgetsLoading } = useUiStore();
+  const { currentHouseholdId, triggerRefresh } = useUiStore();
 
+  const [budgets, setBudgets] = useState<Budget[]>([]);
+  const [budgetsLoading, setBudgetsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isCreateBudgetOpen, setIsCreateBudgetOpen] = useState(false);
   const [periodFilter, setPeriodFilter] = useState<string>('ALL');
+  const [isUpdatingPrimary, setIsUpdatingPrimary] = useState(false);
 
   // Check if we should auto-open create modal (from ?action=create)
   const shouldAutoCreate = searchParams.get('action') === 'create';
@@ -36,6 +40,15 @@ export default function BudgetsPage() {
   const filteredBudgets = periodFilter === 'ALL'
     ? budgets
     : budgets.filter(b => b.period === periodFilter);
+
+  // Sort budgets: primary first, then by startDate desc
+  const sortedBudgets = [...filteredBudgets].sort((a, b) => {
+    // Primary budget always first
+    if (a.isPrimary && !b.isPrimary) return -1;
+    if (!a.isPrimary && b.isPrimary) return 1;
+    // Then by start date (most recent first)
+    return new Date(b.startDate).getTime() - new Date(a.startDate).getTime();
+  });
 
   useEffect(() => {
     const fetchBudgets = async () => {
@@ -63,12 +76,11 @@ export default function BudgetsPage() {
   // Subscribe to real-time budget updates
   useRealtime({
     onBudgetUpdated: (budget, action) => {
-      if (action === 'created') {
-        setBudgets([...budgets, budget]);
-      } else if (action === 'updated') {
-        setBudgets(budgets.map(b => b.id === budget.id ? budget : b));
-      } else if (action === 'deleted') {
-        setBudgets(budgets.filter(b => b.id !== budget.id));
+      // Refetch all budgets to ensure isPrimary flags are correct
+      if (currentHouseholdId) {
+        getBudgets(currentHouseholdId).then(response => {
+          setBudgets(response || []);
+        });
       }
     },
     // Refetch budgets when an expense is created to update progress
@@ -86,17 +98,32 @@ export default function BudgetsPage() {
 
   // Handle toggling primary budget
   const handleTogglePrimary = async (budgetId: string, isPrimary: boolean) => {
+    if (isUpdatingPrimary) return; // Prevent multiple simultaneous updates
+
     try {
+      setIsUpdatingPrimary(true);
+
+      // Call API first and wait for response
       await setPrimaryBudget(budgetId, isPrimary);
-      toast.success(isPrimary ? 'Budget set as primary' : 'Primary budget removed');
-      // Refetch budgets to update isPrimary flags
+
+      // Wait a moment for database to update
+      await new Promise(resolve => setTimeout(resolve, 300));
+
+      // Only update UI after backend confirms success
       if (currentHouseholdId) {
         const response = await getBudgets(currentHouseholdId);
+
+        // Update local state - React will properly re-render
         setBudgets(response || []);
+        triggerRefresh(); // Trigger global refresh
       }
+
+      toast.success(isPrimary ? 'Budget set as primary' : 'Primary budget removed');
     } catch (error: any) {
       console.error('Failed to toggle primary budget:', error);
       toast.error(error?.message || 'Failed to update primary budget');
+    } finally {
+      setIsUpdatingPrimary(false);
     }
   };
 
@@ -205,13 +232,28 @@ export default function BudgetsPage() {
           </Card>
         ) : (
           <div className="space-y-4">
-            {filteredBudgets.map((budget) => (
-              <BudgetCard
-                key={budget.id}
-                budget={budget}
-                onTogglePrimary={handleTogglePrimary}
-              />
-            ))}
+            <AnimatePresence mode="popLayout">
+              {sortedBudgets.map((budget) => (
+                <motion.div
+                  key={budget.id}
+                  layout
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  transition={{
+                    layout: { type: 'spring', stiffness: 350, damping: 30 },
+                    opacity: { duration: 0.2 },
+                    y: { duration: 0.3 }
+                  }}
+                >
+                  <BudgetCard
+                    budget={budget}
+                    onTogglePrimary={handleTogglePrimary}
+                    isUpdating={isUpdatingPrimary}
+                  />
+                </motion.div>
+              ))}
+            </AnimatePresence>
           </div>
         )}
       </div>
@@ -219,9 +261,13 @@ export default function BudgetsPage() {
       <CreateBudgetDialog
         open={isCreateBudgetOpen}
         onOpenChange={setIsCreateBudgetOpen}
-        onSuccess={() => {
-          // If we came from empty state with ?action=create, 
-          // we might want to clean up the URL, but it's not strictly necessary.
+        onSuccess={async () => {
+          // Refetch budgets to get updated isPrimary flags
+          if (currentHouseholdId) {
+            const response = await getBudgets(currentHouseholdId);
+            setBudgets(response || []);
+            triggerRefresh(); // Trigger global refresh
+          }
         }}
       />
     </div>
