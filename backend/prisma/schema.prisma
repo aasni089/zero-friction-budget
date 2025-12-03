@@ -42,6 +42,7 @@ model User {
   accounts              Account[]
   sessions              Session[]
   trustedDevices        TrustedDevice[]
+  revokedTokens         RevokedToken[]
   notificationPrefs     NotificationPreference?
   householdMemberships  HouseholdMember[]
   ownedHouseholds       Household[]  @relation("HouseholdOwner")
@@ -54,7 +55,6 @@ model User {
 enum AuthMethod {
   OTC
   GOOGLE
-  MAGIC_LINK
 }
 
 enum TwoFAMethod {
@@ -78,13 +78,15 @@ enum UserStatus {
 // ============================================================================
 
 model Household {
-  id        String   @id @default(cuid())
-  name      String
-  ownerId   String
-  owner     User     @relation("HouseholdOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  id              String   @id @default(cuid())
+  name            String
+  ownerId         String
+  owner           User     @relation("HouseholdOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  primaryBudgetId String?  @unique
+  primaryBudget   Budget?  @relation("PrimaryBudget", fields: [primaryBudgetId], references: [id], onDelete: SetNull)
 
   members   HouseholdMember[]
-  budgets   Budget[]
+  budgets   Budget[] @relation("HouseholdBudgets")
   expenses  Expense[]
   categories Category[]
   invitations Invitation[]
@@ -141,7 +143,7 @@ model Invitation {
 model Budget {
   id          String   @id @default(cuid())
   householdId String
-  household   Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  household   Household @relation("HouseholdBudgets", fields: [householdId], references: [id], onDelete: Cascade)
 
   name        String
   amount      Float
@@ -153,11 +155,31 @@ model Budget {
   category    Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
 
   expenses    Expense[]
+  categories  BudgetCategory[]  // Line items for multi-category budgets
+
+  primaryForHousehold Household? @relation("PrimaryBudget")
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   @@index([householdId])
+  @@index([categoryId])
+}
+
+model BudgetCategory {
+  id              String   @id @default(cuid())
+  budgetId        String
+  budget          Budget   @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+  
+  categoryId      String
+  category        Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  
+  allocatedAmount Float
+  
+  createdAt       DateTime @default(now())
+  
+  @@unique([budgetId, categoryId])
+  @@index([budgetId])
   @@index([categoryId])
 }
 
@@ -188,6 +210,7 @@ model Category {
   children    Category[] @relation("CategoryHierarchy")
 
   budgets     Budget[]
+  budgetCategories BudgetCategory[]  // Line item allocations
   expenses    Expense[]
   recurringExpenses RecurringExpense[]
 
@@ -324,8 +347,12 @@ model VerificationToken {
 model RevokedToken {
   id        String   @id @default(cuid())
   token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   revokedAt DateTime @default(now())
   expiresAt DateTime
+
+  @@index([userId])
 }
 
 model TrustedDevice {

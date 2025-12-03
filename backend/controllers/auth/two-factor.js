@@ -32,7 +32,7 @@ exports.verify2FA = async (req, res) => {
     // Check if code is correct
     if (decryptedCode !== code) {
       // Increment attempt count
-      const currentAttempts = user.twoFAVerificationAttempts || 0;
+      const currentAttempts = user.verificationAttempts || 0;
       const newAttemptCount = currentAttempts + 1;
       const MAX_VERIFICATION_ATTEMPTS = 3;
       
@@ -44,7 +44,7 @@ exports.verify2FA = async (req, res) => {
             twoFASecret: null,
             twoFAVerified: false,
             twoFAPending: false,
-            twoFAVerificationAttempts: 0
+            verificationAttempts: 0
           }
         });
         
@@ -57,7 +57,7 @@ exports.verify2FA = async (req, res) => {
       // Update attempts count
       await prisma.user.update({
         where: { id: user.id },
-        data: { twoFAVerificationAttempts: newAttemptCount }
+        data: { verificationAttempts: newAttemptCount }
       });
       
       return res.status(400).json({ 
@@ -79,7 +79,7 @@ exports.verify2FA = async (req, res) => {
           twoFASecret: null,
           twoFAEnabled: isSetupFlow ? true : user.twoFAEnabled, // Only enable if in setup flow
           twoFAPending: false,  // Clear pending status
-          twoFAVerificationAttempts: 0 // Reset attempts
+          verificationAttempts: 0 // Reset attempts
         }
       });
 
@@ -203,7 +203,7 @@ exports.configure2FA = async (req, res) => {
       updateData.twoFAMethod = method;
       updateData.twoFAPending = true;
       updateData.twoFAEnabled = false; // Ensure it's explicitly set to false until verified
-      updateData.twoFAVerificationAttempts = 0; // Reset attempts counter
+      updateData.verificationAttempts = 0; // Reset attempts counter
       
       // Generate verification code
       const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
@@ -250,7 +250,7 @@ exports.configure2FA = async (req, res) => {
       updateData.twoFASecret = null;
       updateData.twoFAVerified = false;
       updateData.twoFAPending = false;
-      updateData.twoFAVerificationAttempts = 0;
+      updateData.verificationAttempts = 0;
       
       // Delete trusted devices
       await prisma.trustedDevice.deleteMany({
@@ -295,7 +295,7 @@ exports.cancel2FASetup = async (req, res) => {
       data: {
         twoFAPending: false,
         twoFASecret: null,
-        twoFAVerificationAttempts: 0
+        verificationAttempts: 0
       }
     });
     
@@ -334,7 +334,7 @@ exports.resend2FACode = async (req, res) => {
       where: { id: user.id },
       data: { 
         twoFASecret: encryptedCode,
-        twoFAVerificationAttempts: 0
+        verificationAttempts: 0
       }
     });
     
@@ -396,7 +396,7 @@ exports.verifyLoginWith2FA = async (req, res) => {
     
     if (decryptedCode !== code) {
       // Increment attempt count
-      const currentAttempts = user.twoFAVerificationAttempts || 0;
+      const currentAttempts = user.verificationAttempts || 0;
       const newAttemptCount = currentAttempts + 1;
       const MAX_VERIFICATION_ATTEMPTS = 3;
       
@@ -406,7 +406,7 @@ exports.verifyLoginWith2FA = async (req, res) => {
           where: { id: user.id },
           data: {
             twoFASecret: null,
-            twoFAVerificationAttempts: 0
+            verificationAttempts: 0
           }
         });
         
@@ -419,7 +419,7 @@ exports.verifyLoginWith2FA = async (req, res) => {
       // Update attempts count
       await prisma.user.update({
         where: { id: user.id },
-        data: { twoFAVerificationAttempts: newAttemptCount }
+        data: { verificationAttempts: newAttemptCount }
       });
       
       return res.status(400).json({ 
@@ -436,7 +436,7 @@ exports.verifyLoginWith2FA = async (req, res) => {
         data: {
           twoFAVerified: true,
           twoFASecret: null,
-          twoFAVerificationAttempts: 0
+          verificationAttempts: 0
         }
       });
       

@@ -1,9 +1,7 @@
-const { PrismaClient } = require('@prisma/client');
 const { z } = require('zod');
 const logger = require('../config/logger');
 const NodeCache = require('node-cache');
-
-const prisma = new PrismaClient();
+const prisma = require('../config/database'); // Use shared singleton instance
 
 // Initialize cache with 5 minute TTL and check period of 60 seconds
 const cache = new NodeCache({ stdTTL: 300, checkperiod: 60 });
@@ -15,6 +13,7 @@ const cache = new NodeCache({ stdTTL: 300, checkperiod: 60 });
 const monthlyQuerySchema = z.object({
   householdId: z.string().cuid('Invalid household ID'),
   month: z.string().regex(/^\d{4}-\d{2}$/, 'Month must be in YYYY-MM format').optional(),
+  budgetId: z.string().cuid('Invalid budget ID').optional(),
 });
 
 const budgetHealthQuerySchema = z.object({
@@ -125,10 +124,10 @@ exports.getMonthlySummary = async (req, res) => {
   try {
     const validatedData = monthlyQuerySchema.parse(req.query);
     const userId = req.user.id;
-    const { householdId, month } = validatedData;
+    const { householdId, month, budgetId } = validatedData;
 
     // Create cache key
-    const cacheKey = `monthly:${householdId}:${month || 'current'}`;
+    const cacheKey = `monthly:${householdId}:${month || 'current'}:${budgetId || 'primary'}`;
 
     // Check cache
     const cachedData = cache.get(cacheKey);
@@ -189,47 +188,78 @@ exports.getMonthlySummary = async (req, res) => {
       },
     });
 
-    // Get all budgets for the month
-    const budgets = await prisma.budget.findMany({
-      where: {
-        householdId,
-        OR: [
-          {
-            AND: [
-              { startDate: { lte: endDate } },
-              { endDate: { gte: startDate } },
-            ],
-          },
-          {
-            AND: [
-              { startDate: { lte: endDate } },
-              { endDate: null },
-            ],
-          },
-        ],
-      },
-    });
+    // Determine which budget to use
+    let selectedBudget = null;
 
-    // Calculate summary totals
-    const totalExpenses = expenses
+    if (budgetId) {
+      // Use the explicitly requested budget
+      selectedBudget = await prisma.budget.findUnique({
+        where: { id: budgetId },
+        include: {
+          categories: {
+            include: {
+              category: true
+            }
+          }
+        }
+      });
+
+      // Verify budget belongs to this household
+      if (selectedBudget && selectedBudget.householdId !== householdId) {
+        return res.status(403).json({
+          success: false,
+          error: {
+            message: 'Access denied. Budget does not belong to this household.',
+          },
+        });
+      }
+    } else {
+      // Get household to find primary budget
+      const household = await prisma.household.findUnique({
+        where: { id: householdId },
+        select: { primaryBudgetId: true }
+      });
+
+      // Use primary budget if it exists
+      if (household?.primaryBudgetId) {
+        selectedBudget = await prisma.budget.findUnique({
+          where: { id: household.primaryBudgetId },
+          include: {
+            categories: {
+              include: {
+                category: true
+              }
+            }
+          }
+        });
+      }
+    }
+
+    // Filter expenses to only those assigned to selected budget (if a budget exists)
+    const budgetExpenses = selectedBudget
+      ? expenses.filter(e => e.budgetId === selectedBudget.id)
+      : expenses; // If no budget, show all expenses
+
+    // Calculate summary totals (only from primary budget expenses)
+    const totalExpenses = budgetExpenses
       .filter(e => e.type === 'EXPENSE')
       .reduce((sum, e) => sum + e.amount, 0);
 
-    const totalIncome = expenses
+    const totalIncome = budgetExpenses
       .filter(e => e.type === 'INCOME')
       .reduce((sum, e) => sum + e.amount, 0);
 
     const net = totalIncome - totalExpenses;
 
-    const totalBudgetAmount = budgets.reduce((sum, b) => sum + b.amount, 0);
+    const totalBudgetAmount = selectedBudget ? selectedBudget.amount : 0;
     const budgetRemaining = totalBudgetAmount - totalExpenses;
     const budgetUsagePercentage = totalBudgetAmount > 0
       ? Math.round((totalExpenses / totalBudgetAmount) * 10000) / 100
       : 0;
 
-    // Category breakdown
+    // Category breakdown (only from primary budget expenses)
     const categoryMap = {};
-    expenses
+    budgetExpenses
       .filter(e => e.type === 'EXPENSE')
       .forEach(expense => {
         const categoryName = expense.category?.name || 'Uncategorized';
@@ -250,13 +280,14 @@ exports.getMonthlySummary = async (req, res) => {
         categoryMap[categoryId].count += 1;
       });
 
-    // Add budget amounts to categories
-    budgets.forEach(budget => {
-      if (budget.categoryId && categoryMap[budget.categoryId]) {
-        categoryMap[budget.categoryId].budgetAmount =
-          (categoryMap[budget.categoryId].budgetAmount || 0) + budget.amount;
-      }
-    });
+    // Add budget amounts to categories from selected budget's categories
+    if (selectedBudget && selectedBudget.categories) {
+      selectedBudget.categories.forEach(budgetCategory => {
+        if (budgetCategory.categoryId && categoryMap[budgetCategory.categoryId]) {
+          categoryMap[budgetCategory.categoryId].budgetAmount = budgetCategory.allocatedAmount;
+        }
+      });
+    }
 
     // Calculate percentages
     Object.values(categoryMap).forEach(category => {
@@ -271,9 +302,9 @@ exports.getMonthlySummary = async (req, res) => {
       .sort((a, b) => b.total - a.total)
       .slice(0, 5);
 
-    // Member contributions
+    // Member contributions (only from primary budget expenses)
     const memberMap = {};
-    expenses
+    budgetExpenses
       .filter(e => e.type === 'EXPENSE')
       .forEach(expense => {
         const userId = expense.user.id;
@@ -301,12 +332,18 @@ exports.getMonthlySummary = async (req, res) => {
 
     const memberContributions = Object.values(memberMap);
 
-    // Spending trends
-    const dailyBreakdown = calculateDailyBreakdown(expenses, startDate, endDate);
+    // Spending trends (only from primary budget expenses)
+    const dailyBreakdown = calculateDailyBreakdown(budgetExpenses, startDate, endDate);
     const weekOverWeek = calculateWeekOverWeek(dailyBreakdown);
     const projectedSpending = projectEndOfMonth(totalExpenses, daysElapsed, totalDaysInMonth);
 
     const responseData = {
+      selectedBudget: selectedBudget ? {
+        id: selectedBudget.id,
+        name: selectedBudget.name,
+        amount: selectedBudget.amount,
+        period: selectedBudget.period,
+      } : null,
       period: {
         month: monthNum,
         year,
@@ -323,6 +360,7 @@ exports.getMonthlySummary = async (req, res) => {
         budgetSpent: Math.round(totalExpenses * 100) / 100,
         budgetRemaining: Math.round(budgetRemaining * 100) / 100,
         budgetUsagePercentage,
+        totalTransactions: budgetExpenses.filter(e => e.type === 'EXPENSE').length,
       },
       categoryBreakdown: {
         all: Object.values(categoryMap),

@@ -46,3 +46,6 @@ app.*.map.json
 
 # Development documentation (local only)
 PHASE_PROMPTS.md
+
+# Claude-generated documentation (local only)
+claude_files/

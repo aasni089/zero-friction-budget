@@ -14,10 +14,10 @@ exports.sendMagicLink = async (email, token, name = '') => {
     const response = await resend.emails.send({
       from: process.env.EMAIL_FROM || 'auth@yourdomain.com',
       to: email,
-      subject: 'Sign in to your PropTech account',
+      subject: 'Sign in to Zero Friction Budget',
       html: `
         <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2>Sign in to your PropTech account</h2>
+          <h2>Sign in to Zero Friction Budget</h2>
           <p>Hello ${name || 'there'},</p>
           <p>Click the button below to sign in to your account. This link will expire in 15 minutes.</p>
           <div style="margin: 30px 0;">
@@ -45,12 +45,12 @@ exports.sendLoginCode = async (email, code, name = '') => {
     const response = await resend.emails.send({
       from: process.env.EMAIL_FROM || 'auth@yourdomain.com',
       to: email,
-      subject: 'Your PropTech Login Code',
+      subject: 'Your Zero Friction Budget Login Code',
       html: `
         <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
           <h2>Your Login Code</h2>
           <p>Hello ${name || 'there'},</p>
-          <p>Use the following code to sign in to your PropTech account:</p>
+          <p>Use the following code to sign in to Zero Friction Budget:</p>
           <div style="margin: 30px 0; text-align: center;">
             <div style="font-size: 36px; letter-spacing: 8px; font-weight: bold; background-color: #f3f4f6; padding: 16px; border-radius: 4px;">${code}</div>
           </div>
@@ -75,7 +75,7 @@ exports.sendVerificationCode = async (email, code, name = '') => {
     const response = await resend.emails.send({
       from: process.env.EMAIL_FROM || 'auth@yourdomain.com',
       to: email,
-      subject: 'Your PropTech Verification Code',
+      subject: 'Your Zero Friction Budget Verification Code',
       html: `
         <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
           <h2>Your Verification Code</h2>
@@ -105,24 +105,24 @@ exports.sendWelcomeEmail = async (email, name = '') => {
     const response = await resend.emails.send({
       from: process.env.EMAIL_FROM || 'welcome@yourdomain.com',
       to: email,
-      subject: 'Welcome to PropTech',
+      subject: 'Welcome to Zero Friction Budget',
       html: `
         <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2>Welcome to PropTech</h2>
+          <h2>Welcome to Zero Friction Budget</h2>
           <p>Hello ${name || 'there'},</p>
-          <p>Thank you for creating an account with PropTech. We're excited to have you on board!</p>
-          <p>With PropTech, you can:</p>
+          <p>Thank you for creating an account with Zero Friction Budget. We're excited to have you on board!</p>
+          <p>With Zero Friction Budget, you can:</p>
           <ul style="margin: 20px 0; padding-left: 20px;">
-            <li>Find properties that match your specific needs</li>
-            <li>Access comprehensive zoning information</li>
-            <li>Save on commissions with our direct buyer-seller connection</li>
-            <li>Manage your entire property portfolio in one place</li>
+            <li>Track household expenses effortlessly</li>
+            <li>Collaborate with household members in real-time</li>
+            <li>Set and monitor budgets by category</li>
+            <li>Get insights into your spending habits</li>
           </ul>
           <div style="margin: 30px 0;">
             <a href="${process.env.FRONTEND_URL}/dashboard" style="background-color: #4F46E5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; display: inline-block;">Get Started</a>
           </div>
           <p>If you have any questions, don't hesitate to reach out to our support team.</p>
-          <p>Best regards,<br>The PropTech Team</p>
+          <p>Best regards,<br>The Zero Friction Budget Team</p>
         </div>
       `
     });
@@ -142,12 +142,12 @@ exports.sendSecurityNotification = async (email, action, name = '', ipAddress = 
     const response = await resend.emails.send({
       from: process.env.EMAIL_FROM || 'security@yourdomain.com',
       to: email,
-      subject: 'PropTech Account Security Update',
+      subject: 'Zero Friction Budget Account Security Update',
       html: `
         <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
           <h2>Account Security Update</h2>
           <p>Hello ${name || 'there'},</p>
-          <p>We're contacting you to let you know about recent activity on your PropTech account:</p>
+          <p>We're contacting you to let you know about recent activity on your Zero Friction Budget account:</p>
           <div style="margin: 20px 0; padding: 15px; background-color: #f3f4f6; border-radius: 4px;">
             <p style="margin: 0;"><strong>Action:</strong> ${action}</p>
             <p style="margin: 8px 0 0;"><strong>Time:</strong> ${new Date().toUTCString()}</p>

@@ -7,142 +7,12 @@ const { authenticateToken } = require('../middleware/auth');
 const { authLimiter } = require('../middleware/rate-limit');
 
 // Import controllers
-const magicLinkController = require('../controllers/auth/magic-link');
 const oneTimeCodeController = require('../controllers/auth/one-time-code');
 const twoFactorController = require('../controllers/auth/two-factor');
 const profileController = require('../controllers/auth/profile');
 
 /**
  * @swagger
- * /api/auth/magic-link:
- *   post:
- *     summary: Request a magic link for authentication
- *     tags: [Authentication]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - email
- *             properties:
- *               email:
- *                 type: string
- *                 format: email
- *               name:
- *                 type: string
- *                 description: Only required for new users
- *     responses:
- *       200:
- *         description: Magic link sent successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                 isRegistration:
- *                   type: boolean
- *                 message:
- *                   type: string
- *                 email:
- *                   type: string
- *       400:
- *         description: Invalid request
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 error:
- *                   type: string
- *       500:
- *         description: Failed to send magic link
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 error:
- *                   type: string
- */
-router.post('/magic-link', magicLinkController.requestMagicLink);
-
-/**
- * @swagger
- * /api/auth/verify-magic-link:
- *   post:
- *     summary: Verify a magic link token
- *     tags: [Authentication]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - token
- *             properties:
- *               token:
- *                 type: string
- *     responses:
- *       200:
- *         description: Token verified successfully
- *         content:
- *           application/json:
- *             schema:
- *               oneOf:
- *                 - type: object
- *                   properties:
- *                     token:
- *                       type: string
- *                     user:
- *                       type: object
- *                       properties:
- *                         id:
- *                           type: string
- *                         name:
- *                           type: string
- *                         email:
- *                           type: string
- *                         twoFAEnabled:
- *                           type: boolean
- *                         twoFAVerified:
- *                           type: boolean
- *                         isNewUser:
- *                           type: boolean
- *                 - type: object
- *                   properties:
- *                     message:
- *                       type: string
- *                     tempToken:
- *                       type: string
- *                     requiresTwoFactor:
- *                       type: boolean
- *                     twoFAMethod:
- *                       type: string
- *       400:
- *         description: Invalid or expired token
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 error:
- *                   type: string
- *       500:
- *         description: Authentication failed
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 error:
- *                   type: string
- */
-router.post('/verify-magic-link', magicLinkController.verifyMagicLink);
 
 /**
  * @swagger
@@ -1090,7 +960,7 @@ router.post('/logout', authenticateToken, profileController.logout);
  *                 type: string
  *               preferredAuthMethod:
  *                 type: string
- *                 enum: [magic_link, google]
+ *                 enum: [one_time_code, google]
  *               phoneNumber:
  *                 type: string
  *     responses:

@@ -5,18 +5,35 @@ const { PrismaClient } = require('@prisma/client');
  * Database client configuration
  * Creates a singleton instance of PrismaClient for Supabase PostgreSQL
  * Connection string is configured via DATABASE_URL in .env
+ *
+ * IMPORTANT: Uses global singleton pattern to prevent multiple instances
+ * in development with hot-reloading (which causes connection pool exhaustion)
  */
 
 // Configure log levels based on environment
-const logLevels = process.env.NODE_ENV === 'development' 
+const logLevels = process.env.NODE_ENV === 'development'
   ? ['query', 'info', 'warn', 'error']
   : ['warn', 'error'];
 
-// Create Prisma client with appropriate log levels
-const prisma = new PrismaClient({
-  log: logLevels,
-  errorFormat: process.env.NODE_ENV === 'development' ? 'pretty' : 'minimal'
-});
+// Singleton pattern: Reuse existing client in development to prevent connection exhaustion
+let prisma;
+
+if (process.env.NODE_ENV === 'production') {
+  // In production, create a new client
+  prisma = new PrismaClient({
+    log: logLevels,
+    errorFormat: 'minimal'
+  });
+} else {
+  // In development, reuse the client across hot reloads
+  if (!global.prisma) {
+    global.prisma = new PrismaClient({
+      log: logLevels,
+      errorFormat: 'pretty'
+    });
+  }
+  prisma = global.prisma;
+}
 
 // Set up event listeners for connection issues
 prisma.$on('query', (e) => {

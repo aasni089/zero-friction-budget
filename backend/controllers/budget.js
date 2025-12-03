@@ -1,9 +1,7 @@
-const { PrismaClient } = require('@prisma/client');
 const { z } = require('zod');
 const logger = require('../config/logger');
 const { broadcastBudgetUpdated } = require('../services/realtime');
-
-const prisma = new PrismaClient();
+const prisma = require('../config/database'); // Use shared singleton instance
 
 // ============================================================================
 // VALIDATION SCHEMAS
@@ -26,6 +24,7 @@ const updateBudgetSchema = z.object({
   startDate: z.string().datetime().or(z.date()).optional(),
   endDate: z.string().datetime().or(z.date()).optional().nullable(),
   categoryId: z.string().cuid().optional().nullable(),
+  isPrimary: z.boolean().optional(),
 });
 
 // ============================================================================
@@ -171,12 +170,62 @@ exports.createBudget = async (req, res) => {
 
     logger.info(`Budget created: ${budget.id} by user ${userId}`);
 
+    // Handle category line items if provided
+    if (req.body.categories && Array.isArray(req.body.categories) && req.body.categories.length > 0) {
+      await prisma.budgetCategory.createMany({
+        data: req.body.categories.map(cat => ({
+          budgetId: budget.id,
+          categoryId: cat.categoryId,
+          allocatedAmount: cat.allocatedAmount,
+        })),
+      });
+    }
+
+    // Auto-set as primary if it's the first budget for the household
+    const budgetCount = await prisma.budget.count({
+      where: { householdId: validatedData.householdId }
+    });
+
+    if (budgetCount === 1) {
+      // This is the first budget, make it primary
+      await prisma.household.update({
+        where: { id: validatedData.householdId },
+        data: { primaryBudgetId: budget.id }
+      });
+    }
+
+    // Refetch budget with categories to return complete data
+    const completeBudget = await prisma.budget.findUnique({
+      where: { id: budget.id },
+      include: {
+        category: true,
+        categories: {
+          include: {
+            category: {
+              select: {
+                id: true,
+                name: true,
+                icon: true,
+                color: true,
+              },
+            },
+          },
+        },
+        household: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+    });
+
     // Broadcast real-time event
-    await broadcastBudgetUpdated(budget.householdId, budget, 'created');
+    await broadcastBudgetUpdated(completeBudget.householdId, completeBudget, 'created');
 
     res.status(201).json({
       success: true,
-      data: budget,
+      data: completeBudget,
     });
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -254,6 +303,18 @@ exports.listBudgets = async (req, res) => {
       where,
       include: {
         category: true,
+        categories: {
+          include: {
+            category: {
+              select: {
+                id: true,
+                name: true,
+                icon: true,
+                color: true,
+              },
+            },
+          },
+        },
         household: {
           select: {
             id: true,
@@ -271,13 +332,43 @@ exports.listBudgets = async (req, res) => {
       },
     });
 
-    // Calculate progress for each budget
+    // Get household to check primary budget
+    const household = householdId ? await prisma.household.findUnique({
+      where: { id: householdId },
+      select: { primaryBudgetId: true }
+    }) : null;
+
+    // Calculate progress for each budget and add isPrimary flag
     const budgetsWithProgress = await Promise.all(
       budgets.map(async (budget) => {
         const progress = await calculateBudgetProgress(budget.id);
+
+        // Calculate spent amount for each line item (category)
+        const lineItems = await Promise.all(
+          (budget.categories || []).map(async (lineItem) => {
+            // Get expenses for this category within this budget
+            const categoryExpenses = await prisma.expense.findMany({
+              where: {
+                budgetId: budget.id,
+                categoryId: lineItem.categoryId,
+                type: 'EXPENSE',
+              },
+            });
+
+            const spent = categoryExpenses.reduce((sum, exp) => sum + exp.amount, 0);
+
+            return {
+              ...lineItem,
+              spent: Math.round(spent * 100) / 100,
+            };
+          })
+        );
+
         return {
           ...budget,
+          categories: lineItems,
           progress,
+          isPrimary: household ? household.primaryBudgetId === budget.id : false,
         };
       })
     );
@@ -311,6 +402,18 @@ exports.getBudget = async (req, res) => {
       where: { id },
       include: {
         category: true,
+        categories: {
+          include: {
+            category: {
+              select: {
+                id: true,
+                name: true,
+                icon: true,
+                color: true,
+              },
+            },
+          },
+        },
         household: {
           select: {
             id: true,
@@ -445,12 +548,66 @@ exports.updateBudget = async (req, res) => {
       updateData.categoryId = validatedData.categoryId;
     }
 
+    // Handle categories array (line items) if provided
+    if (req.body.categories !== undefined) {
+      // Delete all existing budget categories
+      await prisma.budgetCategory.deleteMany({
+        where: { budgetId: id },
+      });
+
+      // Create new budget categories if any provided
+      if (Array.isArray(req.body.categories) && req.body.categories.length > 0) {
+        await prisma.budgetCategory.createMany({
+          data: req.body.categories.map(cat => ({
+            budgetId: id,
+            categoryId: cat.categoryId,
+            allocatedAmount: cat.allocatedAmount,
+          })),
+        });
+      }
+    }
+
+    // Handle isPrimary flag
+    if (req.body.isPrimary === true) {
+      // Update the household to set this budget as primary
+      await prisma.household.update({
+        where: { id: budget.householdId },
+        data: { primaryBudgetId: id }
+      });
+    } else if (req.body.isPrimary === false) {
+      // Check if this budget is currently primary
+      const household = await prisma.household.findUnique({
+        where: { id: budget.householdId },
+        select: { primaryBudgetId: true }
+      });
+
+      if (household?.primaryBudgetId === id) {
+        // Unset primary budget
+        await prisma.household.update({
+          where: { id: budget.householdId },
+          data: { primaryBudgetId: null }
+        });
+      }
+    }
+
     // Update budget
     const updatedBudget = await prisma.budget.update({
       where: { id },
       data: updateData,
       include: {
         category: true,
+        categories: {
+          include: {
+            category: {
+              select: {
+                id: true,
+                name: true,
+                icon: true,
+                color: true,
+              },
+            },
+          },
+        },
         household: {
           select: {
             id: true,
@@ -766,6 +923,108 @@ exports.rolloverBudget = async (req, res) => {
       error: {
         message: 'Failed to rollover budget',
       },
+    });
+  }
+};
+
+/**
+ * @route   GET /budgets/primary
+ * @desc    Get the primary budget for a household
+ * @access  Private
+ */
+exports.getPrimaryBudget = async (req, res) => {
+  try {
+    const { householdId } = req.query;
+    const userId = req.user.id;
+
+    if (!householdId) {
+      return res.status(400).json({
+        success: false,
+        error: { message: 'householdId is required' }
+      });
+    }
+
+    // Verify user is a member
+    const membership = await prisma.householdMember.findUnique({
+      where: {
+        householdId_userId: { householdId, userId }
+      }
+    });
+
+    if (!membership) {
+      return res.status(403).json({
+        success: false,
+        error: { message: 'Access denied' }
+      });
+    }
+
+    // Get household with primary budget
+    const household = await prisma.household.findUnique({
+      where: { id: householdId },
+      include: {
+        primaryBudget: {
+          include: {
+            category: true,
+            categories: {
+              include: {
+                category: {
+                  select: {
+                    id: true,
+                    name: true,
+                    icon: true,
+                    color: true
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    });
+
+    if (!household?.primaryBudget) {
+      return res.json({
+        success: true,
+        data: null
+      });
+    }
+
+    // Calculate progress for each line item
+    const budgetWithProgress = {
+      ...household.primaryBudget,
+      isPrimary: true,
+      lineItems: await Promise.all(
+        household.primaryBudget.categories.map(async (lineItem) => {
+          const expenses = await prisma.expense.findMany({
+            where: {
+              budgetId: household.primaryBudget.id, // Only count expenses for THIS budget
+              categoryId: lineItem.categoryId,
+              type: 'EXPENSE'
+            }
+          });
+
+          const spent = expenses.reduce((sum, e) => sum + e.amount, 0);
+          const percentage = (spent / lineItem.allocatedAmount) * 100;
+
+          return {
+            ...lineItem,
+            spent,
+            remaining: lineItem.allocatedAmount - spent,
+            percentage: Math.round(percentage * 100) / 100
+          };
+        })
+      )
+    };
+
+    res.json({
+      success: true,
+      data: budgetWithProgress
+    });
+  } catch (error) {
+    logger.error('Error getting primary budget:', error);
+    res.status(500).json({
+      success: false,
+      error: { message: 'Failed to get primary budget' }
     });
   }
 };

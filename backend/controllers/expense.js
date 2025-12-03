@@ -1,4 +1,3 @@
-const { PrismaClient } = require('@prisma/client');
 const { z } = require('zod');
 const logger = require('../config/logger');
 const {
@@ -6,8 +5,7 @@ const {
   broadcastExpenseUpdated,
   broadcastExpenseDeleted,
 } = require('../services/realtime');
-
-const prisma = new PrismaClient();
+const prisma = require('../config/database'); // Use shared singleton instance
 
 // ============================================================================
 // VALIDATION SCHEMAS
