@@ -5,7 +5,7 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+  // directUrl removed - pooler URL works better for this setup
 }
 
 // ============================================================================
@@ -47,6 +47,7 @@ model User {
   householdMemberships  HouseholdMember[]
   ownedHouseholds       Household[]  @relation("HouseholdOwner")
   expenses              Expense[]
+  recurringExpenses     RecurringExpense[]
 
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
@@ -90,6 +91,7 @@ model Household {
   expenses  Expense[]
   categories Category[]
   invitations Invitation[]
+  recurringExpenses RecurringExpense[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -271,12 +273,24 @@ enum ExpenseType {
 model RecurringExpense {
   id          String   @id @default(cuid())
 
+  // Multi-tenant fields
+  householdId String
+  household   Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   frequency   RecurringFrequency
   amount      Float
   description String?
 
   categoryId  String?
   category    Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  // Day/Date specification based on frequency
+  dayOfWeek   Int?      // 0-6 (0=Sunday, 6=Saturday) for WEEKLY, BIWEEKLY
+  dayOfMonth  Int?      // 1-31 for MONTHLY, YEARLY
+  monthOfYear Int?      // 1-12 for YEARLY
 
   startDate   DateTime
   endDate     DateTime?
@@ -289,6 +303,8 @@ model RecurringExpense {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  @@index([householdId])
+  @@index([userId])
   @@index([nextRun])
   @@index([isActive])
 }
