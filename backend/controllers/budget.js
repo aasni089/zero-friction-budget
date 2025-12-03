@@ -172,8 +172,16 @@ exports.createBudget = async (req, res) => {
 
     logger.info(`Budget created: ${budget.id} by user ${userId}`);
 
-    // Broadcast real-time event
-    await broadcastBudgetUpdated(budget.householdId, budget, 'created');
+    // Handle category line items if provided
+    if (req.body.categories && Array.isArray(req.body.categories) && req.body.categories.length > 0) {
+      await prisma.budgetCategory.createMany({
+        data: req.body.categories.map(cat => ({
+          budgetId: budget.id,
+          categoryId: cat.categoryId,
+          allocatedAmount: cat.allocatedAmount,
+        })),
+      });
+    }
 
     // Auto-set as primary if it's the first budget for the household
     const budgetCount = await prisma.budget.count({
@@ -188,9 +196,38 @@ exports.createBudget = async (req, res) => {
       });
     }
 
+    // Refetch budget with categories to return complete data
+    const completeBudget = await prisma.budget.findUnique({
+      where: { id: budget.id },
+      include: {
+        category: true,
+        categories: {
+          include: {
+            category: {
+              select: {
+                id: true,
+                name: true,
+                icon: true,
+                color: true,
+              },
+            },
+          },
+        },
+        household: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+    });
+
+    // Broadcast real-time event
+    await broadcastBudgetUpdated(completeBudget.householdId, completeBudget, 'created');
+
     res.status(201).json({
       success: true,
-      data: budget,
+      data: completeBudget,
     });
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -307,8 +344,31 @@ exports.listBudgets = async (req, res) => {
     const budgetsWithProgress = await Promise.all(
       budgets.map(async (budget) => {
         const progress = await calculateBudgetProgress(budget.id);
+
+        // Calculate spent amount for each line item (category)
+        const lineItems = await Promise.all(
+          (budget.categories || []).map(async (lineItem) => {
+            // Get expenses for this category within this budget
+            const categoryExpenses = await prisma.expense.findMany({
+              where: {
+                budgetId: budget.id,
+                categoryId: lineItem.categoryId,
+                type: 'EXPENSE',
+              },
+            });
+
+            const spent = categoryExpenses.reduce((sum, exp) => sum + exp.amount, 0);
+
+            return {
+              ...lineItem,
+              spent: Math.round(spent * 100) / 100,
+            };
+          })
+        );
+
         return {
           ...budget,
+          categories: lineItems,
           progress,
           isPrimary: household ? household.primaryBudgetId === budget.id : false,
         };
@@ -939,7 +999,7 @@ exports.getPrimaryBudget = async (req, res) => {
         household.primaryBudget.categories.map(async (lineItem) => {
           const expenses = await prisma.expense.findMany({
             where: {
-              householdId,
+              budgetId: household.primaryBudget.id, // Only count expenses for THIS budget
               categoryId: lineItem.categoryId,
               type: 'EXPENSE'
             }
