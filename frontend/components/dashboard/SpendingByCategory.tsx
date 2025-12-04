@@ -1,5 +1,6 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
 import type { CategorySpending } from '@/lib/api/dashboard-client';
@@ -20,6 +21,8 @@ const COLORS = [
 ];
 
 export function SpendingByCategory({ categories }: SpendingByCategoryProps) {
+  const router = useRouter();
+
   // Calculate "Other" category if there are more than 5 categories
   const top5 = categories.slice(0, 5);
   const remaining = categories.slice(5);
@@ -28,11 +31,18 @@ export function SpendingByCategory({ categories }: SpendingByCategoryProps) {
   const otherPercentage = remaining.reduce((sum, cat) => sum + cat.percentage, 0);
 
   // Format data for the pie chart
-  const chartData = top5.map((category, index) => ({
+  const chartData: Array<{
+    name: string;
+    value: number;
+    percentage: number;
+    color: string;
+    categoryId?: string;
+  }> = top5.map((category, index) => ({
     name: category.name,
     value: category.total,
     percentage: category.percentage,
     color: COLORS[index % COLORS.length],
+    categoryId: category.id,
   }));
 
   // Add "Other" category if there are remaining categories
@@ -42,6 +52,7 @@ export function SpendingByCategory({ categories }: SpendingByCategoryProps) {
       value: otherTotal,
       percentage: otherPercentage,
       color: '#9ca3af', // gray-400
+      categoryId: undefined, // Other is aggregated, no single category ID
     });
   }
 
@@ -106,6 +117,12 @@ export function SpendingByCategory({ categories }: SpendingByCategoryProps) {
               outerRadius={80}
               fill="#8884d8"
               dataKey="value"
+              onClick={(data: any) => {
+                if (data.categoryId) {
+                  router.push(`/categories/${data.categoryId}`);
+                }
+              }}
+              cursor="pointer"
             >
               {chartData.map((entry, index) => (
                 <Cell key={`cell-${index}`} fill={entry.color} />
@@ -118,7 +135,15 @@ export function SpendingByCategory({ categories }: SpendingByCategoryProps) {
         {/* Category List */}
         <div className="mt-4 space-y-2">
           {chartData.map((category, index) => (
-            <div key={index} className="flex items-center justify-between text-sm">
+            <div
+              key={index}
+              className="flex items-center justify-between text-sm cursor-pointer hover:bg-secondary/50 p-2 rounded-md transition-colors"
+              onClick={() => {
+                if (category.categoryId) {
+                  router.push(`/categories/${category.categoryId}`);
+                }
+              }}
+            >
               <div className="flex items-center gap-2">
                 <div
                   className="w-3 h-3 rounded-full"

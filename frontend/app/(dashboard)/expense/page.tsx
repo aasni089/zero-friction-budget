@@ -27,77 +27,72 @@ export default function ExpensePage() {
     }
   };
 
-  // Wait for households to be loaded first
+  // Coordinated data fetching
   useEffect(() => {
-    // If we have households OR we have neither households nor a selected ID
-    // (meaning layout has finished loading), we're past initial load
-    if (households.length > 0 || (households.length === 0 && currentHouseholdId === null)) {
-      setIsInitialLoad(false);
-    }
-  }, [households, currentHouseholdId]);
-
-  useEffect(() => {
-    const fetchBudgets = async () => {
-      // Wait until we're past initial load
-      if (isInitialLoad) {
+    const fetchData = async () => {
+      // Wait for household context to be ready
+      if (households.length === 0 && currentHouseholdId === null) {
         return;
       }
 
-      // If no household selected, don't try to fetch budgets
       if (!currentHouseholdId) {
+        setIsInitialLoad(false);
         setBudgetsLoading(false);
-        setBudgets([]); // Clear budgets when no household
+        setLoadingPrimaryBudget(false);
         return;
       }
 
       try {
-        setBudgetsLoading(true);
+        setIsInitialLoad(true);
         setError(null);
-        const response = await getBudgets(currentHouseholdId);
-        setBudgets(response || []);
+
+        // Only fetch budgets if we don't have them
+        if (budgets.length === 0) {
+          setBudgetsLoading(true);
+          const budgetsData = await getBudgets(currentHouseholdId);
+          setBudgets(budgetsData || []);
+        }
+
+        // Always fetch primary budget to ensure it's up to date
+        // (or we could derive it from budgets if we trust the store)
+        setLoadingPrimaryBudget(true);
+        const primaryBudgetData = await getPrimaryBudget(currentHouseholdId).catch(() => null);
+        setPrimaryBudget(primaryBudgetData);
+
       } catch (error: any) {
-        console.error('Failed to fetch budgets:', error);
-        setError(
-          error?.message || 'Failed to load budgets. Please try again.'
-        );
+        console.error('Failed to fetch data:', error);
+        setError(error?.message || 'Failed to load data. Please try again.');
       } finally {
         setBudgetsLoading(false);
+        setLoadingPrimaryBudget(false);
+        setIsInitialLoad(false);
       }
     };
 
-    fetchBudgets();
-  }, [currentHouseholdId, isInitialLoad, setBudgets, setBudgetsLoading]);
+    fetchData();
+  }, [currentHouseholdId, setBudgets, setBudgetsLoading, budgets.length]);
 
-  // Fetch primary budget
-  useEffect(() => {
-    const fetchPrimaryBudget = async () => {
-      if (!currentHouseholdId || isInitialLoad) {
-        setLoadingPrimaryBudget(false);
-        return;
-      }
-
-      try {
-        setLoadingPrimaryBudget(true);
-        const budget = await getPrimaryBudget(currentHouseholdId);
-        setPrimaryBudget(budget);
-      } catch (error) {
-        console.error('Failed to fetch primary budget:', error);
-      } finally {
-        setLoadingPrimaryBudget(false);
-      }
-    };
-
-    fetchPrimaryBudget();
-  }, [currentHouseholdId, isInitialLoad]);
-
-  // Loading state - only show skeleton during initial load
-  // After that, rely on component-level loading states
-  if (isInitialLoad) {
+  // Loading state - show full page skeleton
+  if (isInitialLoad || (budgetsLoading && budgets.length === 0)) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="space-y-4 w-full max-w-2xl px-4">
-          <Skeleton className="h-12 w-48 mx-auto" />
-          <Skeleton className="h-64 w-full" />
+      <div className="min-h-screen flex flex-col items-center justify-center px-4">
+        <div className="w-full max-w-xl space-y-8">
+          {/* Greeting skeleton */}
+          <div className="text-center space-y-2">
+            <Skeleton className="h-10 w-64 mx-auto" />
+            <Skeleton className="h-6 w-80 mx-auto" />
+          </div>
+          {/* Input skeleton */}
+          <Skeleton className="h-[72px] w-full rounded-2xl" />
+          {/* Progress skeleton */}
+          <Skeleton className="h-[200px] w-full rounded-2xl" />
+          {/* Recent activity skeleton */}
+          <div className="space-y-4">
+            <Skeleton className="h-5 w-32" />
+            <Skeleton className="h-20 w-full rounded-xl" />
+            <Skeleton className="h-20 w-full rounded-xl" />
+            <Skeleton className="h-20 w-full rounded-xl" />
+          </div>
         </div>
       </div>
     );
@@ -120,28 +115,27 @@ export default function ExpensePage() {
     return <EmptyState type="household" />;
   }
 
-  // Check 2: No household selected (shouldn't happen, but handle it)
+  // Check 2: No household selected
   if (!currentHouseholdId) {
     return <EmptyState type="household" />;
   }
 
   // Check 3: No budgets exist for the household
-  // Don't show empty state while budgets are loading
-  if (!budgetsLoading && budgets.length === 0) {
+  if (budgets.length === 0) {
     return <EmptyState type="budget" />;
   }
 
   // All checks passed: show expense input
   return (
-    <div className="min-h-screen flex flex-col items-center pt-8 px-4">
+    <div className="min-h-screen flex flex-col items-center pt-8 px-4 animate-in fade-in duration-500">
       <div className="w-full max-w-xl space-y-6">
         <ExpenseInput
           primaryBudgetId={primaryBudget?.id}
           onExpenseCreated={refetchPrimaryBudget}
         >
-          {/* Primary Budget Progress - Positioned between input and recent activity */}
-          {!loadingPrimaryBudget && primaryBudget && primaryBudget.lineItems && (
-            <div className="bg-white p-6 rounded-2xl shadow-sm border border-border/50 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-100">
+          {/* Primary Budget Progress */}
+          {primaryBudget && primaryBudget.lineItems && (
+            <div className="bg-white p-6 rounded-2xl shadow-sm border border-border/50">
               <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-4">
                 {primaryBudget.name} Progress
               </h3>

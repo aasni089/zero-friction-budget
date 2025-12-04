@@ -14,8 +14,14 @@ interface UiState {
   households: Household[];
   householdsLoading: boolean;
 
+  // Categories
+  categories: any[]; // Category[]
+  categoriesLoading: boolean;
+  setCategories: (categories: any[]) => void;
+  setCategoriesLoading: (loading: boolean) => void;
+
   // Budget management
-  budgets: any[]; // Budget[] from budget-client
+  budgets: any[];
   budgetsLoading: boolean;
 
   // Actions
@@ -27,6 +33,8 @@ interface UiState {
   setHouseholdsLoading: (loading: boolean) => void;
   getCurrentHousehold: () => Household | null;
   setBudgets: (budgets: any[]) => void;
+  updateBudget: (budgetId: string, updates: any) => void;
+  deleteBudget: (budgetId: string) => void;
   setBudgetsLoading: (loading: boolean) => void;
   clearBudgets: () => void;
 
@@ -46,6 +54,8 @@ export const useUiStore = create<UiState>()(
       householdsLoading: false,
       budgets: [],
       budgetsLoading: false,
+      categories: [],
+      categoriesLoading: false,
 
       // Sidebar actions
       toggleSidebar: () => set((state) => ({
@@ -63,9 +73,15 @@ export const useUiStore = create<UiState>()(
       // Household actions
       setCurrentHouseholdId: (householdId) => {
         const currentId = get().currentHouseholdId;
-        // Clear budgets when household changes
+        // Clear budgets and categories when household changes
         if (householdId !== currentId) {
-          set({ currentHouseholdId: householdId, budgets: [], budgetsLoading: false });
+          set({
+            currentHouseholdId: householdId,
+            budgets: [],
+            budgetsLoading: false,
+            categories: [],
+            categoriesLoading: false
+          });
         } else {
           set({ currentHouseholdId: householdId });
         }
@@ -101,9 +117,23 @@ export const useUiStore = create<UiState>()(
       // Budget actions
       setBudgets: (budgets) => set({ budgets }),
 
+      updateBudget: (budgetId, updates) => set((state) => ({
+        budgets: state.budgets.map((b) =>
+          b.id === budgetId ? { ...b, ...updates } : b
+        )
+      })),
+
+      deleteBudget: (budgetId) => set((state) => ({
+        budgets: state.budgets.filter((b) => b.id !== budgetId)
+      })),
+
       setBudgetsLoading: (loading) => set({ budgetsLoading: loading }),
 
       clearBudgets: () => set({ budgets: [], budgetsLoading: false }),
+
+      // Category actions
+      setCategories: (categories) => set({ categories }),
+      setCategoriesLoading: (loading) => set({ categoriesLoading: loading }),
 
       // Global refresh trigger
       refreshKey: 0,

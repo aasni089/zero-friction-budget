@@ -57,11 +57,12 @@ import {
     X,
     Users,
     Crown,
+    ArrowLeft,
 } from 'lucide-react';
 
 export default function HouseholdPage() {
     const { user } = useAuthStore();
-    const { currentHouseholdId } = useUiStore();
+    const { currentHouseholdId, households, setHouseholds } = useUiStore();
     const router = useRouter();
 
     const [isLoading, setIsLoading] = useState(true);
@@ -136,6 +137,13 @@ export default function HouseholdPage() {
                 name: householdName,
             });
             setHousehold(updated);
+
+            // Update global store
+            const updatedHouseholds = households.map(h =>
+                h.id === updated.id ? updated : h
+            );
+            setHouseholds(updatedHouseholds);
+
             setIsEditingName(false);
             toast.success('Household name updated');
         } catch (error: any) {
@@ -286,16 +294,18 @@ export default function HouseholdPage() {
 
     if (isLoading) {
         return (
-            <div className="space-y-6">
-                <Card>
-                    <CardHeader>
-                        <Skeleton className="h-6 w-48" />
-                        <Skeleton className="h-4 w-64 mt-2" />
-                    </CardHeader>
-                    <CardContent>
-                        <Skeleton className="h-32 w-full" />
-                    </CardContent>
-                </Card>
+            <div className="max-w-4xl mx-auto px-6 pt-12 pb-8 space-y-8">
+                {/* Header skeleton */}
+                <div className="flex items-center gap-4">
+                    <Skeleton className="h-10 w-10 rounded-lg" />
+                    <div className="space-y-2">
+                        <Skeleton className="h-9 w-56" />
+                        <Skeleton className="h-4 w-48" />
+                    </div>
+                </div>
+                {/* Cards skeleton */}
+                <Skeleton className="h-64 w-full rounded-xl" />
+                <Skeleton className="h-96 w-full rounded-xl" />
             </div>
         );
     }
@@ -315,7 +325,23 @@ export default function HouseholdPage() {
     }
 
     return (
-        <div className="space-y-6">
+        <div className="max-w-4xl mx-auto px-6 pt-12 pb-8 space-y-8">
+            <div className="flex items-center gap-4">
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => router.push('/expense')}
+                >
+                    <ArrowLeft className="h-5 w-5" />
+                </Button>
+                <div>
+                    <h1 className="text-3xl font-bold tracking-tight text-foreground">Household Settings</h1>
+                    <p className="text-muted-foreground mt-1">
+                        Manage your household members and settings
+                    </p>
+                </div>
+            </div>
+
             {/* Household Information */}
             <Card>
                 <CardHeader>

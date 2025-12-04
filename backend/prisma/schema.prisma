@@ -5,7 +5,7 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+  // directUrl removed - pooler URL works better for this setup
 }
 
 // ============================================================================
@@ -47,6 +47,7 @@ model User {
   householdMemberships  HouseholdMember[]
   ownedHouseholds       Household[]  @relation("HouseholdOwner")
   expenses              Expense[]
+  recurringExpenses     RecurringExpense[]
 
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
@@ -90,6 +91,7 @@ model Household {
   expenses  Expense[]
   categories Category[]
   invitations Invitation[]
+  recurringExpenses RecurringExpense[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -156,6 +158,8 @@ model Budget {
 
   expenses    Expense[]
   categories  BudgetCategory[]  // Line items for multi-category budgets
+  ownedCategories Category[] @relation("BudgetCategories")  // Categories specific to this budget
+  recurringExpenses RecurringExpense[]
 
   primaryForHousehold Household? @relation("PrimaryBudget")
 
@@ -201,6 +205,9 @@ model Category {
   householdId String
   household   Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
 
+  budgetId    String?
+  budgetOwner Budget?   @relation("BudgetCategories", fields: [budgetId], references: [id], onDelete: Cascade)
+
   name        String
   icon        String?   // Emoji or icon identifier
   color       String?   // Hex color code
@@ -218,6 +225,7 @@ model Category {
   updatedAt   DateTime @updatedAt
 
   @@index([householdId])
+  @@index([budgetId])
   @@index([parentId])
 }
 
@@ -236,6 +244,7 @@ model Expense {
 
   budgetId    String?
   budget      Budget?  @relation(fields: [budgetId], references: [id], onDelete: SetNull)
+  archivedBudgetName String? // Preserves budget name after deletion for historical records
 
   categoryId  String?
   category    Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
@@ -271,12 +280,27 @@ enum ExpenseType {
 model RecurringExpense {
   id          String   @id @default(cuid())
 
+  // Multi-tenant fields
+  householdId String
+  household   Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   frequency   RecurringFrequency
   amount      Float
   description String?
 
   categoryId  String?
   category    Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  budgetId    String?
+  budget      Budget? @relation(fields: [budgetId], references: [id], onDelete: SetNull)
+
+  // Day/Date specification based on frequency
+  dayOfWeek   Int?      // 0-6 (0=Sunday, 6=Saturday) for WEEKLY, BIWEEKLY
+  dayOfMonth  Int?      // 1-31 for MONTHLY, YEARLY
+  monthOfYear Int?      // 1-12 for YEARLY
 
   startDate   DateTime
   endDate     DateTime?
@@ -289,8 +313,11 @@ model RecurringExpense {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  @@index([householdId])
+  @@index([userId])
   @@index([nextRun])
   @@index([isActive])
+  @@index([budgetId])
 }
 
 enum RecurringFrequency {

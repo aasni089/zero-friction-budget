@@ -94,7 +94,13 @@ export function RecentExpenses({ expenses }: RecentExpensesProps) {
                     )}
                   </td>
                   <td className="py-3 px-2 text-sm text-gray-600">
-                    {expense.budget?.name || <span className="text-gray-400">No budget</span>}
+                    {expense.budget?.name || (
+                      expense.archivedBudgetName ? (
+                        <span className="text-red-500">{expense.archivedBudgetName} (Deleted)</span>
+                      ) : (
+                        <span className="text-gray-400">No budget</span>
+                      )
+                    )}
                   </td>
                   <td className="py-3 px-2 text-sm text-gray-600">
                     {expense.user?.name || 'Unknown'}
@@ -137,11 +143,15 @@ export function RecentExpenses({ expenses }: RecentExpensesProps) {
                 </div>
                 <span className="text-gray-600">{expense.user?.name || 'Unknown'}</span>
               </div>
-              {expense.budget && (
+              {expense.budget ? (
                 <div className="text-xs text-gray-500">
                   Budget: <span className="font-medium">{expense.budget.name}</span>
                 </div>
-              )}
+              ) : expense.archivedBudgetName ? (
+                <div className="text-xs text-red-500">
+                  Budget: <span className="font-medium">{expense.archivedBudgetName} (Deleted)</span>
+                </div>
+              ) : null}
             </div>
           ))}
         </div>

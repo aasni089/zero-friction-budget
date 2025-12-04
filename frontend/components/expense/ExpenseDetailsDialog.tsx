@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useUiStore } from '@/lib/stores/ui';
-import type { Category } from '@/lib/api/category-client';
+import { getCategories, type Category } from '@/lib/api/category-client';
 import {
     Dialog,
     DialogContent,
@@ -52,16 +52,44 @@ export function ExpenseDetailsDialog({
     primaryBudgetId,
     onSubmit,
 }: ExpenseDetailsDialogProps) {
-    const { budgets } = useUiStore();
+    const { budgets, currentHouseholdId } = useUiStore();
 
-    // Form state
+    // Form state - budget defaults to primary but can be changed
     const [budgetId, setBudgetId] = useState<string>('');
     const [categoryId, setCategoryId] = useState<string>('');
     const [description, setDescription] = useState('');
     const [date, setDate] = useState<Date>(new Date());
     const [isCalendarOpen, setIsCalendarOpen] = useState(false);
 
-    // Reset form when dialog closes, or auto-select primary budget when opening
+    // Data state
+    const [categories, setCategories] = useState<Category[]>([]);
+    const [isLoadingCategories, setIsLoadingCategories] = useState(false);
+
+    // Fetch categories when dialog opens or budget changes
+    useEffect(() => {
+        const fetchCategories = async () => {
+            if (!currentHouseholdId || !open || !budgetId) return;
+
+            try {
+                setIsLoadingCategories(true);
+                console.log('[ExpenseDetailsDialog] Fetching categories for budgetId:', budgetId);
+                // Fetch only line item categories for the selected budget
+                const response = await getCategories(currentHouseholdId, budgetId, true);
+                console.log('[ExpenseDetailsDialog] Received categories:', response.categories?.length, 'categories');
+                console.log('[ExpenseDetailsDialog] Category budgetIds:', response.categories?.map(c => ({ name: c.name, budgetId: c.budgetId })));
+                setCategories(response.categories || []);
+            } catch (error) {
+                console.error('Failed to fetch categories:', error);
+                toast.error('Failed to load categories');
+            } finally {
+                setIsLoadingCategories(false);
+            }
+        };
+
+        fetchCategories();
+    }, [currentHouseholdId, budgetId, open]);
+
+    // Auto-select primary budget when dialog opens, reset on close
     useEffect(() => {
         if (!open) {
             setBudgetId('');
@@ -69,7 +97,7 @@ export function ExpenseDetailsDialog({
             setDescription('');
             setDate(new Date());
         } else if (primaryBudgetId) {
-            // Auto-select primary budget when dialog opens
+            console.log('[ExpenseDetailsDialog] Auto-selecting primary budget:', primaryBudgetId);
             setBudgetId(primaryBudgetId);
         }
     }, [open, primaryBudgetId]);
@@ -82,6 +110,7 @@ export function ExpenseDetailsDialog({
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
 
+        // Validate required fields
         if (!budgetId) {
             toast.error('Please select a budget');
             return;
@@ -92,23 +121,21 @@ export function ExpenseDetailsDialog({
             return;
         }
 
-        onSubmit({
+        const submissionData: any = {
             budgetId,
             categoryId,
-            description: description || undefined,
             date,
-        });
+        };
 
+        // Only include description if it's set
+        if (description) {
+            submissionData.description = description;
+        }
+
+        onSubmit(submissionData);
         onOpenChange(false);
     };
 
-    // Get available categories based on selected budget's line items
-    const availableCategories = budgetId
-        ? budgets
-            .find((b) => b.id === budgetId)
-            ?.categories?.map((bc: any) => bc.category)
-            .filter((c: any): c is Category => c !== null && c !== undefined) || []
-        : [];
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -127,7 +154,7 @@ export function ExpenseDetailsDialog({
                 </DialogHeader>
 
                 <form onSubmit={handleSubmit} className="space-y-4 py-4">
-                    {/* Budget Selector - REQUIRED */}
+                    {/* Budget Selector - defaults to primary */}
                     <div className="space-y-2">
                         <Label htmlFor="budget">
                             Budget <span className="text-red-500">*</span>
@@ -146,7 +173,7 @@ export function ExpenseDetailsDialog({
                         </Select>
                     </div>
 
-                    {/* Category Selector - filtered by budget */}
+                    {/* Category Selector - shows household + selected budget categories */}
                     <div className="space-y-2">
                         <Label htmlFor="category">
                             Category <span className="text-red-500">*</span>
@@ -154,19 +181,19 @@ export function ExpenseDetailsDialog({
                         <Select
                             value={categoryId}
                             onValueChange={setCategoryId}
-                            disabled={!budgetId || availableCategories.length === 0}
+                            disabled={isLoadingCategories || categories.length === 0}
                         >
                             <SelectTrigger id="category">
                                 <SelectValue placeholder={
-                                    !budgetId
-                                        ? "Select a budget first"
-                                        : availableCategories.length === 0
-                                            ? "No categories in this budget"
+                                    isLoadingCategories
+                                        ? "Loading categories..."
+                                        : categories.length === 0
+                                            ? "No categories available"
                                             : "Select category"
                                 } />
                             </SelectTrigger>
                             <SelectContent>
-                                {availableCategories.map((category: Category) => (
+                                {categories.map((category: Category) => (
                                     <SelectItem key={category.id} value={category.id}>
                                         <div className="flex items-center gap-2">
                                             {category.color && (
@@ -182,9 +209,9 @@ export function ExpenseDetailsDialog({
                                 ))}
                             </SelectContent>
                         </Select>
-                        {budgetId && availableCategories.length === 0 && (
-                            <p className="text-xs text-orange-600">
-                                This budget has no category line items configured
+                        {!isLoadingCategories && categories.length === 0 && (
+                            <p className="text-xs text-muted-foreground">
+                                No categories available. Create one in the Categories page.
                             </p>
                         )}
                     </div>

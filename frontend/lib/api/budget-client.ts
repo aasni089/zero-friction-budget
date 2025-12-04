@@ -73,9 +73,15 @@ export interface CreateBudgetData {
 export interface UpdateBudgetData {
   name?: string;
   amount?: number;
-  period?: 'WEEKLY' | 'MONTHLY' | 'YEARLY';
+  period?: 'WEEKLY' | 'BIWEEKLY' | 'MONTHLY' | 'QUARTERLY' | 'YEARLY' | 'CUSTOM';
   startDate?: string;
   endDate?: string;
+  categoryId?: string | null;
+  categories?: {
+    categoryId: string;
+    allocatedAmount: number;
+  }[];
+  isPrimary?: boolean;
 }
 
 /**

@@ -192,6 +192,14 @@ export function ExpenseInput({ primaryBudgetId, onExpenseCreated, children }: Ex
 
   const dateOrder = ['Today', 'Yesterday', 'Earlier'];
 
+  // Get time-based greeting
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Good morning';
+    if (hour < 18) return 'Good afternoon';
+    return 'Good evening';
+  };
+
   return (
     <div className="min-h-[calc(100vh-100px)] flex flex-col items-center justify-center p-4 animate-in fade-in duration-500">
       {/* Main Content - Centered */}
@@ -199,7 +207,7 @@ export function ExpenseInput({ primaryBudgetId, onExpenseCreated, children }: Ex
         {/* Greeting Text */}
         <div className="text-center space-y-2">
           <h1 className="text-4xl font-bold tracking-tight text-foreground">
-            Good morning, {user?.name?.split(' ')[0] || 'there'}
+            {getGreeting()}, {user?.name?.split(' ')[0] || 'there'}
           </h1>
           <p className="text-lg text-muted-foreground">
             What would you like to track today?
@@ -276,13 +284,13 @@ export function ExpenseInput({ primaryBudgetId, onExpenseCreated, children }: Ex
                       >
                         <div className="flex items-center gap-3">
                           <div
-                            className="w-8 h-8 rounded-full flex items-center justify-center text-sm shadow-sm"
+                            className="w-8 h-8 rounded-full flex items-center justify-center text-base shadow-sm"
                             style={{
                               backgroundColor: expense.category?.color ? `${expense.category.color}20` : 'var(--muted)',
                               color: expense.category?.color || 'var(--foreground)'
                             }}
                           >
-                            {expense.category?.name?.[0] || '?'}
+                            {expense.category?.icon || '💰'}
                           </div>
                           <div>
                             <p className="font-medium text-foreground text-sm">
@@ -290,12 +298,17 @@ export function ExpenseInput({ primaryBudgetId, onExpenseCreated, children }: Ex
                             </p>
                             <p className="text-xs text-muted-foreground">
                               {expense.category?.name || 'Uncategorized'}
-                              {expense.budget && (
+                              {expense.budget ? (
                                 <>
                                   {' • '}
                                   {expense.budget.name}
                                 </>
-                              )}
+                              ) : expense.archivedBudgetName ? (
+                                <>
+                                  {' • '}
+                                  <span className="text-red-500">{expense.archivedBudgetName} (Deleted)</span>
+                                </>
+                              ) : null}
                             </p>
                           </div>
                         </div>

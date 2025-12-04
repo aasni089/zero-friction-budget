@@ -14,7 +14,7 @@ const createBudgetSchema = z.object({
   period: z.enum(['WEEKLY', 'BIWEEKLY', 'MONTHLY', 'QUARTERLY', 'YEARLY', 'CUSTOM']),
   startDate: z.string().datetime().or(z.date()),
   endDate: z.string().datetime().or(z.date()).optional().nullable(),
-  categoryId: z.string().cuid().optional().nullable(),
+  categoryId: z.string().uuid().optional().nullable(),
 });
 
 const updateBudgetSchema = z.object({
@@ -23,7 +23,7 @@ const updateBudgetSchema = z.object({
   period: z.enum(['WEEKLY', 'BIWEEKLY', 'MONTHLY', 'QUARTERLY', 'YEARLY', 'CUSTOM']).optional(),
   startDate: z.string().datetime().or(z.date()).optional(),
   endDate: z.string().datetime().or(z.date()).optional().nullable(),
-  categoryId: z.string().cuid().optional().nullable(),
+  categoryId: z.string().uuid().optional().nullable(),
   isPrimary: z.boolean().optional(),
 });
 
@@ -692,9 +692,23 @@ exports.deleteBudget = async (req, res) => {
 
     // Store householdId before deletion for real-time broadcast
     const householdId = budget.householdId;
+    const budgetName = budget.name;
 
-    // Unlink expenses (set budgetId to null) - handled by Prisma onDelete: SetNull
-    // Delete budget
+    // Count expenses to be archived
+    const expensesToArchive = await prisma.expense.count({
+      where: { budgetId: id }
+    });
+
+    // Archive budget name in expenses for historical purposes
+    if (expensesToArchive > 0) {
+      await prisma.expense.updateMany({
+        where: { budgetId: id },
+        data: { archivedBudgetName: budgetName }
+      });
+      logger.info(`Archived budget name "${budgetName}" in ${expensesToArchive} expenses`);
+    }
+
+    // Delete budget (budgetId will be set to null by Prisma onDelete: SetNull)
     await prisma.budget.delete({
       where: { id },
     });

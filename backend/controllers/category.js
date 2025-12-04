@@ -23,6 +23,7 @@ const DEFAULT_CATEGORIES = [
 
 const createCategorySchema = z.object({
   householdId: z.string().cuid('Invalid household ID'),
+  budgetId: z.string().cuid('Invalid budget ID').optional().nullable(),
   name: z.string().min(1, 'Name is required').max(100, 'Name too long'),
   icon: z.string().max(10).optional().nullable(),
   color: z.string().regex(/^#[0-9A-Fa-f]{6}$/, 'Invalid hex color').optional().nullable(),
@@ -52,7 +53,7 @@ const seedCategoriesSchema = z.object({
 exports.listCategories = async (req, res) => {
   try {
     const userId = req.user.id;
-    const { householdId } = req.query;
+    const { householdId, budgetId, onlyLineItems } = req.query;
 
     if (!householdId) {
       return res.status(400).json({
@@ -82,42 +83,117 @@ exports.listCategories = async (req, res) => {
       });
     }
 
-    // Get categories with counts
-    const categories = await prisma.category.findMany({
-      where: { householdId },
-      include: {
-        parent: {
-          select: {
-            id: true,
-            name: true,
-            icon: true,
-            color: true,
+    // If budgetId provided, verify user has access to that budget
+    if (budgetId) {
+      const budget = await prisma.budget.findUnique({
+        where: { id: budgetId },
+      });
+
+      if (!budget || budget.householdId !== householdId) {
+        return res.status(404).json({
+          success: false,
+          error: {
+            message: 'Budget not found or access denied',
+          },
+        });
+      }
+    }
+
+    let categories;
+
+    // If onlyLineItems=true, return only categories from budget's line items
+    if (budgetId && onlyLineItems === 'true') {
+      // Get budget line items with their categories
+      const budgetCategories = await prisma.budgetCategory.findMany({
+        where: { budgetId },
+        include: {
+          category: {
+            include: {
+              parent: {
+                select: {
+                  id: true,
+                  name: true,
+                  icon: true,
+                  color: true,
+                },
+              },
+              children: {
+                select: {
+                  id: true,
+                  name: true,
+                  icon: true,
+                  color: true,
+                },
+              },
+              _count: {
+                select: {
+                  expenses: true,
+                  budgets: true,
+                },
+              },
+            },
           },
         },
-        children: {
-          select: {
-            id: true,
-            name: true,
-            icon: true,
-            color: true,
+        orderBy: {
+          category: {
+            name: 'asc',
           },
         },
-        _count: {
-          select: {
-            expenses: true,
-            budgets: true,
+      });
+
+      // Extract categories from budget line items
+      categories = budgetCategories.map(bc => bc.category);
+    } else {
+      // Original behavior: Get categories with counts
+      // If budgetId provided: return household-level (budgetId=null) + budget-specific categories
+      // If no budgetId: return only household-level categories (budgetId=null)
+      const whereClause = budgetId
+        ? {
+            householdId,
+            OR: [
+              { budgetId: null }, // Household-level categories
+              { budgetId }, // Budget-specific categories
+            ],
+          }
+        : { householdId, budgetId: null };
+
+      categories = await prisma.category.findMany({
+        where: whereClause,
+        include: {
+          parent: {
+            select: {
+              id: true,
+              name: true,
+              icon: true,
+              color: true,
+            },
+          },
+          children: {
+            select: {
+              id: true,
+              name: true,
+              icon: true,
+              color: true,
+            },
+          },
+          _count: {
+            select: {
+              expenses: true,
+              budgets: true,
+            },
           },
         },
-      },
-      orderBy: {
-        name: 'asc',
-      },
-    });
+        orderBy: {
+          name: 'asc',
+        },
+      });
+    }
 
     // Format response with usage counts
     const formattedCategories = categories.map((category) => ({
       id: category.id,
       householdId: category.householdId,
+      budgetId: category.budgetId,
       name: category.name,
       icon: category.icon,
       color: category.color,
@@ -211,13 +287,30 @@ exports.createCategory = async (req, res) => {
       }
     }
 
-    // Create category
+    // If budgetId provided, verify budget belongs to the household
+    if (validatedData.budgetId) {
+      const budget = await prisma.budget.findUnique({
+        where: { id: validatedData.budgetId },
+      });
+
+      if (!budget || budget.householdId !== validatedData.householdId) {
+        return res.status(400).json({
+          success: false,
+          error: {
+            message: 'Budget not found or does not belong to this household',
+          },
+        });
+      }
+    }
+
+    // Create category (budgetId defaults to null for household-level)
     const category = await prisma.category.create({
       data: {
         name: validatedData.name,
         icon: validatedData.icon || null,
         color: validatedData.color || null,
         householdId: validatedData.householdId,
+        budgetId: validatedData.budgetId || null,
         parentId: validatedData.parentId || null,
       },
       include: {
@@ -557,6 +650,197 @@ exports.getDefaultCategories = async (req, res) => {
       success: false,
       error: {
         message: 'Failed to get default categories',
+      },
+    });
+  }
+};
+
+/**
+ * @route   GET /categories/:id/analytics
+ * @desc    Get spending analytics for a category
+ * @access  Private (household members)
+ */
+exports.getCategoryAnalytics = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+    const { startDate, endDate } = req.query;
+
+    // Get category
+    const category = await prisma.category.findUnique({
+      where: { id },
+      include: {
+        household: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+    });
+
+    if (!category) {
+      return res.status(404).json({
+        success: false,
+        error: {
+          message: 'Category not found',
+        },
+      });
+    }
+
+    // Verify user is a member of the household
+    const membership = await prisma.householdMember.findUnique({
+      where: {
+        householdId_userId: {
+          householdId: category.householdId,
+          userId,
+        },
+      },
+    });
+
+    if (!membership) {
+      return res.status(403).json({
+        success: false,
+        error: {
+          message: 'Access denied. You are not a member of this household.',
+        },
+      });
+    }
+
+    // Parse date range (default to last 6 months)
+    const end = endDate ? new Date(endDate) : new Date();
+    const start = startDate ? new Date(startDate) : new Date(new Date().setMonth(end.getMonth() - 6));
+
+    // Get all expenses for this category within date range
+    const expenses = await prisma.expense.findMany({
+      where: {
+        categoryId: id,
+        householdId: category.householdId,
+        date: {
+          gte: start,
+          lte: end,
+        },
+        type: 'EXPENSE', // Only count expenses, not income
+      },
+      orderBy: {
+        date: 'asc',
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+    });
+
+    // Calculate totals
+    const totalSpent = expenses.reduce((sum, expense) => sum + expense.amount, 0);
+    const expenseCount = expenses.length;
+
+    // Group by month for monthly breakdown
+    const monthlyBreakdown = {};
+    expenses.forEach((expense) => {
+      const monthKey = `${expense.date.getFullYear()}-${String(expense.date.getMonth() + 1).padStart(2, '0')}`;
+
+      if (!monthlyBreakdown[monthKey]) {
+        monthlyBreakdown[monthKey] = {
+          month: monthKey,
+          total: 0,
+          count: 0,
+          expenses: [],
+        };
+      }
+
+      monthlyBreakdown[monthKey].total += expense.amount;
+      monthlyBreakdown[monthKey].count += 1;
+      monthlyBreakdown[monthKey].expenses.push({
+        id: expense.id,
+        amount: expense.amount,
+        description: expense.description,
+        date: expense.date,
+        user: expense.user,
+      });
+    });
+
+    // Convert to array and sort by month
+    const monthlyData = Object.values(monthlyBreakdown).sort((a, b) =>
+      a.month.localeCompare(b.month)
+    );
+
+    // Calculate averages
+    const monthsWithData = monthlyData.filter(m => m.count > 0).length;
+    const averagePerMonth = monthsWithData > 0 ? totalSpent / monthsWithData : 0;
+    const averagePerExpense = expenseCount > 0 ? totalSpent / expenseCount : 0;
+
+    // Get top spenders
+    const userTotals = {};
+    expenses.forEach((expense) => {
+      if (!userTotals[expense.userId]) {
+        userTotals[expense.userId] = {
+          userId: expense.userId,
+          userName: expense.user.name || 'Unknown',
+          total: 0,
+          count: 0,
+        };
+      }
+      userTotals[expense.userId].total += expense.amount;
+      userTotals[expense.userId].count += 1;
+    });
+
+    const topSpenders = Object.values(userTotals)
+      .sort((a, b) => b.total - a.total)
+      .slice(0, 5);
+
+    // Calculate trend (compare first half vs second half of period)
+    const midpoint = new Date((start.getTime() + end.getTime()) / 2);
+    const firstHalfExpenses = expenses.filter(e => e.date < midpoint);
+    const secondHalfExpenses = expenses.filter(e => e.date >= midpoint);
+
+    const firstHalfTotal = firstHalfExpenses.reduce((sum, e) => sum + e.amount, 0);
+    const secondHalfTotal = secondHalfExpenses.reduce((sum, e) => sum + e.amount, 0);
+
+    let trend = 'stable';
+    if (firstHalfTotal > 0) {
+      const percentChange = ((secondHalfTotal - firstHalfTotal) / firstHalfTotal) * 100;
+      if (percentChange > 10) trend = 'increasing';
+      else if (percentChange < -10) trend = 'decreasing';
+    }
+
+    logger.info(`Category analytics retrieved: ${id}`);
+
+    res.json({
+      success: true,
+      data: {
+        category: {
+          id: category.id,
+          name: category.name,
+          icon: category.icon,
+          color: category.color,
+          household: category.household,
+        },
+        period: {
+          startDate: start,
+          endDate: end,
+        },
+        summary: {
+          totalSpent,
+          expenseCount,
+          averagePerMonth: Math.round(averagePerMonth * 100) / 100,
+          averagePerExpense: Math.round(averagePerExpense * 100) / 100,
+          trend,
+        },
+        monthlyBreakdown: monthlyData,
+        topSpenders,
+      },
+    });
+  } catch (error) {
+    logger.error('Error getting category analytics:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        message: 'Failed to get category analytics',
       },
     });
   }

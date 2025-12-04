@@ -183,6 +183,75 @@ router.post('/', authenticateToken, categoryController.createCategory);
 
 /**
  * @swagger
+ * /categories/{id}/analytics:
+ *   get:
+ *     summary: Get spending analytics for a category
+ *     tags: [Categories]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Category ID
+ *       - in: query
+ *         name: startDate
+ *         schema:
+ *           type: string
+ *           format: date-time
+ *         description: Start date for analytics (defaults to 6 months ago)
+ *       - in: query
+ *         name: endDate
+ *         schema:
+ *           type: string
+ *           format: date-time
+ *         description: End date for analytics (defaults to today)
+ *     responses:
+ *       200:
+ *         description: Category analytics retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     category:
+ *                       type: object
+ *                     period:
+ *                       type: object
+ *                     summary:
+ *                       type: object
+ *                       properties:
+ *                         totalSpent:
+ *                           type: number
+ *                         expenseCount:
+ *                           type: integer
+ *                         averagePerMonth:
+ *                           type: number
+ *                         averagePerExpense:
+ *                           type: number
+ *                         trend:
+ *                           type: string
+ *                           enum: [increasing, decreasing, stable]
+ *                     monthlyBreakdown:
+ *                       type: array
+ *                     topSpenders:
+ *                       type: array
+ *       403:
+ *         description: Not a member of household
+ *       404:
+ *         description: Category not found
+ */
+router.get('/:id/analytics', authenticateToken, categoryController.getCategoryAnalytics);
+
+/**
+ * @swagger
  * /categories/{id}:
  *   patch:
  *     summary: Update category

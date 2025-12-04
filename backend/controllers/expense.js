@@ -18,7 +18,7 @@ const createExpenseSchema = z.object({
   description: z.string().min(1).max(500).optional().nullable(),
   date: z.string().datetime().or(z.date()).optional(),
   budgetId: z.string().cuid().optional().nullable(),
-  categoryId: z.string().cuid().optional().nullable(),
+  categoryId: z.string().uuid().optional().nullable(),
   isRecurring: z.boolean().default(false),
   recurringId: z.string().cuid().optional().nullable(),
   attachments: z.array(z.string().url()).default([]),
@@ -31,7 +31,7 @@ const updateExpenseSchema = z.object({
   description: z.string().min(1).max(500).optional().nullable(),
   date: z.string().datetime().or(z.date()).optional(),
   budgetId: z.string().cuid().optional().nullable(),
-  categoryId: z.string().cuid().optional().nullable(),
+  categoryId: z.string().uuid().optional().nullable(),
   isRecurring: z.boolean().optional(),
   recurringId: z.string().cuid().optional().nullable(),
   attachments: z.array(z.string().url()).optional(),
@@ -53,7 +53,9 @@ const bulkCreateExpenseSchema = z.object({
  */
 exports.createExpense = async (req, res) => {
   try {
+    console.log('[CREATE EXPENSE] Request body:', JSON.stringify(req.body, null, 2));
     const validatedData = createExpenseSchema.parse(req.body);
+    console.log('[CREATE EXPENSE] Validated data:', JSON.stringify(validatedData, null, 2));
     const userId = req.user.id;
 
     // Verify user is a member of the household
@@ -122,6 +124,7 @@ exports.createExpense = async (req, res) => {
     });
   } catch (error) {
     if (error instanceof z.ZodError) {
+      console.log('[CREATE EXPENSE] Validation error:', JSON.stringify(error.errors, null, 2));
       return res.status(400).json({
         success: false,
         error: {
@@ -131,6 +134,7 @@ exports.createExpense = async (req, res) => {
       });
     }
 
+    console.log('[CREATE EXPENSE] Error:', error);
     logger.error('Error creating expense:', error);
     res.status(500).json({
       success: false,

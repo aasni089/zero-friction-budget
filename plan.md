@@ -298,17 +298,17 @@ The proptech project provides production-ready components that save 6-8 weeks of
 
 ### MVP (Must Have)
 - [x] User authentication (OTC, Google OAuth, 2FA)
-- [ ] Household creation and member invitations
-- [ ] Expense entry (amount, category, description, date)
-- [ ] Budget creation and tracking
-- [ ] Monthly dashboard with basic charts
-- [ ] Real-time updates for household members
-- [ ] User/account/household settings
+- [x] Household creation and member invitations
+- [x] Expense entry (amount, category, description, date)
+- [x] Budget creation and tracking
+- [x] Monthly dashboard with basic charts
+- [x] Real-time updates for household members
+- [x] User/account/household settings
 
 ### V2 (Should Have)
-- [ ] Recurring expenses
+- [x] Recurring expenses
 - [ ] Receipt photo uploads
-- [ ] Category customization and hierarchy
+- [x] Category customization and hierarchy
 - [ ] Budget templates
 - [ ] Export data (CSV, PDF)
 - [ ] Email notifications for budget limits
@@ -384,14 +384,14 @@ Current preference: TBD
 
 1. ✅ Close old Flutter/Firebase issues
 2. ✅ Create this plan.md
-3. [ ] Initialize project structure
-4. [ ] Copy and adapt proptech backend
-5. [ ] Setup Supabase project
-6. [ ] Design and implement Prisma schema
-7. [ ] Build backend API routes
-8. [ ] Initialize Next.js frontend
-9. [ ] Implement authentication UI
-10. [ ] Build expense input and dashboard
+3. [x] Initialize project structure
+4. [x] Copy and adapt proptech backend
+5. [x] Setup Supabase project
+6. [x] Design and implement Prisma schema
+7. [x] Build backend API routes
+8. [x] Initialize Next.js frontend
+9. [x] Implement authentication UI
+10. [x] Build expense input and dashboard
 
 ---
 

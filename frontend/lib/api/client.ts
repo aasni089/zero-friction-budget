@@ -206,6 +206,22 @@ async function executeSingleRequest<T>(
     const data = await response.json();
 
     if (!response.ok) {
+      // Handle 401 Unauthorized - Token expired or invalid
+      if (response.status === 401 && typeof window !== 'undefined') {
+        // Clear auth data
+        localStorage.removeItem('auth_token');
+        localStorage.removeItem('auth_user');
+
+        // Also clear cookie if possible (though usually httpOnly)
+        document.cookie = 'auth_token=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+
+        // Redirect to login
+        // Use window.location to force a full refresh and clear any app state
+        if (!window.location.pathname.startsWith('/login')) {
+          window.location.href = `/login?from=${encodeURIComponent(window.location.pathname)}`;
+        }
+      }
+
       throw new ApiError(
         data.error || data.message || 'An error occurred',
         response.status,

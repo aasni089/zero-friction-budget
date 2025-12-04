@@ -76,11 +76,23 @@ export default function BudgetsPage() {
   // Subscribe to real-time budget updates
   useRealtime({
     onBudgetUpdated: (budget, action) => {
-      // Refetch all budgets to ensure isPrimary flags are correct
-      if (currentHouseholdId) {
-        getBudgets(currentHouseholdId).then(response => {
-          setBudgets(response || []);
+      console.log('[BudgetsPage] Received budget update:', { budgetId: budget.id, action });
+      if (action === 'deleted') {
+        // Optimistic update: immediately remove from UI
+        console.log('[BudgetsPage] Removing budget from UI:', budget.id);
+        setBudgets(prevBudgets => {
+          const filtered = prevBudgets.filter(b => b.id !== budget.id);
+          console.log('[BudgetsPage] Budgets after filter:', filtered.length, 'remaining');
+          return filtered;
         });
+      } else {
+        // Refetch all budgets to ensure isPrimary flags are correct
+        console.log('[BudgetsPage] Refetching budgets after', action);
+        if (currentHouseholdId) {
+          getBudgets(currentHouseholdId).then(response => {
+            setBudgets(response || []);
+          });
+        }
       }
     },
     // Refetch budgets when an expense is created to update progress
@@ -155,11 +167,25 @@ export default function BudgetsPage() {
 
   if (budgetsLoading) {
     return (
-      <div className="min-h-screen bg-background p-8">
-        <div className="max-w-4xl mx-auto space-y-4">
-          <Skeleton className="h-12 w-48" />
-          <Skeleton className="h-32 w-full" />
-          <Skeleton className="h-32 w-full" />
+      <div className="min-h-screen bg-background px-6 pt-12 pb-8">
+        <div className="max-w-4xl mx-auto space-y-8">
+          {/* Header skeleton */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <Skeleton className="h-10 w-10 rounded-lg" />
+              <div className="space-y-2">
+                <Skeleton className="h-9 w-32" />
+                <Skeleton className="h-4 w-48" />
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <Skeleton className="h-10 w-[150px]" />
+              <Skeleton className="h-10 w-[140px]" />
+            </div>
+          </div>
+          {/* Budget cards skeleton */}
+          <Skeleton className="h-40 w-full rounded-xl" />
+          <Skeleton className="h-40 w-full rounded-xl" />
         </div>
       </div>
     );
@@ -177,7 +203,7 @@ export default function BudgetsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background p-8">
+    <div className="min-h-screen bg-background px-6 pt-12 pb-8">
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
@@ -189,7 +215,12 @@ export default function BudgetsPage() {
             >
               <ArrowLeft className="h-5 w-5" />
             </Button>
-            <h1 className="text-3xl font-bold text-foreground">Budgets</h1>
+            <div>
+              <h1 className="text-3xl font-bold tracking-tight text-foreground">Budgets</h1>
+              <p className="text-muted-foreground mt-1">
+                Manage your spending limits and goals
+              </p>
+            </div>
           </div>
           <div className="flex items-center gap-3">
             <Select value={periodFilter} onValueChange={setPeriodFilter}>
@@ -249,6 +280,9 @@ export default function BudgetsPage() {
                   <BudgetCard
                     budget={budget}
                     onTogglePrimary={handleTogglePrimary}
+                    onDelete={(budgetId) => {
+                      setBudgets(prev => prev.filter(b => b.id !== budgetId));
+                    }}
                     isUpdating={isUpdatingPrimary}
                   />
                 </motion.div>

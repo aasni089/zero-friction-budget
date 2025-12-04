@@ -8,6 +8,7 @@ export interface Category {
   icon?: string;
   color?: string;
   householdId: string;
+  budgetId?: string;
   createdAt: string;
   updatedAt: string;
   _count?: {
@@ -20,6 +21,7 @@ export interface CreateCategoryData {
   icon?: string;
   color?: string;
   householdId: string;
+  budgetId?: string; // Optional: null = household-level, provided = budget-specific
 }
 
 export interface UpdateCategoryData {
@@ -28,13 +30,46 @@ export interface UpdateCategoryData {
   color?: string;
 }
 
+export interface CategoryAnalytics {
+  category: Category;
+  period: {
+    startDate: string;
+    endDate: string;
+  };
+  summary: {
+    totalSpent: number;
+    expenseCount: number;
+    averagePerMonth: number;
+    averagePerExpense: number;
+    trend: 'increasing' | 'decreasing' | 'stable';
+  };
+  monthlyBreakdown: {
+    month: string;
+    total: number;
+    count: number;
+  }[];
+  topSpenders: {
+    userId: string;
+    userName: string;
+    total: number;
+    count: number;
+  }[];
+}
+
 /**
  * Category Management
  */
 
-// List all categories for a household
-export async function getCategories(householdId: string) {
-  return api.get<{ categories: Category[] }>(`/categories?householdId=${householdId}`);
+// List all categories for a household (optionally filtered by budget)
+export async function getCategories(householdId: string, budgetId?: string, onlyLineItems?: boolean) {
+  let url = `/categories?householdId=${householdId}`;
+  if (budgetId) {
+    url += `&budgetId=${budgetId}`;
+  }
+  if (onlyLineItems) {
+    url += `&onlyLineItems=true`;
+  }
+  return api.get<{ categories: Category[] }>(url);
 }
 
 // Get category details
@@ -55,4 +90,14 @@ export async function updateCategory(categoryId: string, data: UpdateCategoryDat
 // Delete category
 export async function deleteCategory(categoryId: string) {
   return api.delete<{ message: string }>(`/categories/${categoryId}`);
+}
+
+// Get category analytics
+export async function getCategoryAnalytics(categoryId: string, startDate?: string, endDate?: string) {
+  const params = new URLSearchParams();
+  if (startDate) params.append('startDate', startDate);
+  if (endDate) params.append('endDate', endDate);
+
+  const queryString = params.toString() ? `?${params.toString()}` : '';
+  return api.get<CategoryAnalytics>(`/categories/${categoryId}/analytics${queryString}`);
 }
