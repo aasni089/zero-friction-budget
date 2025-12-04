@@ -1,11 +1,12 @@
 'use client';
 
 import { useState } from 'react';
-import { type Budget } from '@/lib/api/budget-client';
+import { type Budget, updateBudget } from '@/lib/api/budget-client';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { EditBudgetDialog } from './EditBudgetDialog';
+import { SelectPrimaryBudgetDialog } from './SelectPrimaryBudgetDialog';
 import { Pencil, Trash2, AlertCircle, Star } from 'lucide-react';
 import {
     AlertDialog,
@@ -21,6 +22,7 @@ import {
 import { deleteBudget } from '@/lib/api/budget-client';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { useUiStore } from '@/lib/stores/ui';
 
 interface BudgetCardProps {
     budget: Budget;
@@ -30,8 +32,11 @@ interface BudgetCardProps {
 }
 
 export function BudgetCard({ budget, onTogglePrimary, onDelete, isUpdating }: BudgetCardProps) {
+    const { budgets } = useUiStore();
     const [isEditOpen, setIsEditOpen] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
+    const [isSelectPrimaryOpen, setIsSelectPrimaryOpen] = useState(false);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
     // Calculate progress (fallback if backend doesn't provide it yet)
     // Note: Backend implementation of progress calculation is needed for this to be accurate
@@ -42,16 +47,48 @@ export function BudgetCard({ budget, onTogglePrimary, onDelete, isUpdating }: Bu
         status: 'on_track' as const,
     };
 
-    const handleDelete = async () => {
+    const handleDeleteClick = () => {
+        // Check if this is the primary budget and there are other budgets available
+        if (budget.isPrimary && budgets.length > 1) {
+            setIsSelectPrimaryOpen(true);
+        } else {
+            setShowDeleteConfirm(true);
+        }
+    };
+
+    const handlePrimarySelection = async (newPrimaryId: string) => {
+        try {
+            // First set the new primary budget
+            await updateBudget(newPrimaryId, { isPrimary: true });
+
+            // Optimistic update: Set new primary in store immediately
+            useUiStore.getState().updateBudget(newPrimaryId, { isPrimary: true });
+
+            // Then delete the current budget
+            await performDelete();
+        } catch (error: any) {
+            console.error('Failed to update primary budget:', error);
+            toast.error('Failed to set new primary budget');
+            // Revert optimistic update if needed (optional, but good practice)
+            useUiStore.getState().updateBudget(newPrimaryId, { isPrimary: false });
+            throw error; // Re-throw to be caught by the dialog
+        }
+    };
+
+    const performDelete = async () => {
         try {
             setIsDeleting(true);
             await deleteBudget(budget.id);
 
-            // Notify parent to update its state
+            // Optimistic update: Remove from store immediately
+            useUiStore.getState().deleteBudget(budget.id);
+
+            // Notify parent to update its state (if it still relies on this)
             if (onDelete) {
                 onDelete(budget.id);
             }
             toast.success('Budget deleted successfully');
+            setShowDeleteConfirm(false);
         } catch (error: any) {
             console.error('Failed to delete budget:', error);
             toast.error(error?.message || 'Failed to delete budget');
@@ -111,36 +148,14 @@ export function BudgetCard({ budget, onTogglePrimary, onDelete, isUpdating }: Bu
                                 <Pencil className="h-4 w-4" />
                             </Button>
 
-                            <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                    <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="text-muted-foreground hover:text-destructive"
-                                    >
-                                        <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                        <AlertDialogTitle>Delete Budget?</AlertDialogTitle>
-                                        <AlertDialogDescription>
-                                            Are you sure you want to delete "{budget.name}"? This action cannot be undone.
-                                            Expenses associated with this budget will not be deleted, but they will be unlinked.
-                                        </AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                        <AlertDialogAction
-                                            onClick={handleDelete}
-                                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                            disabled={isDeleting}
-                                        >
-                                            {isDeleting ? 'Deleting...' : 'Delete'}
-                                        </AlertDialogAction>
-                                    </AlertDialogFooter>
-                                </AlertDialogContent>
-                            </AlertDialog>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={handleDeleteClick}
+                                className="text-muted-foreground hover:text-destructive"
+                            >
+                                <Trash2 className="h-4 w-4" />
+                            </Button>
                         </div>
                     </div>
 
@@ -241,6 +256,36 @@ export function BudgetCard({ budget, onTogglePrimary, onDelete, isUpdating }: Bu
                 open={isEditOpen}
                 onOpenChange={setIsEditOpen}
             />
+
+            <SelectPrimaryBudgetDialog
+                open={isSelectPrimaryOpen}
+                onOpenChange={setIsSelectPrimaryOpen}
+                budgets={budgets}
+                currentBudgetId={budget.id}
+                onConfirm={handlePrimarySelection}
+            />
+
+            <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Delete Budget?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Are you sure you want to delete "{budget.name}"? This action cannot be undone.
+                            Expenses associated with this budget will not be deleted, but they will be unlinked.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={performDelete}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            disabled={isDeleting}
+                        >
+                            {isDeleting ? 'Deleting...' : 'Delete'}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </>
     );
 }

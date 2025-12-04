@@ -8,8 +8,8 @@ import { getMonthlySummary, type MonthlySummaryResponse } from '@/lib/api/dashbo
 import { getExpenses, type Expense } from '@/lib/api/expense-client';
 import { getBudgets, type Budget } from '@/lib/api/budget-client';
 import { SummaryCards } from '@/components/dashboard/SummaryCards';
-import { SpendingByCategory } from '@/components/dashboard/SpendingByCategory';
-import { DailySpendingTrend } from '@/components/dashboard/DailySpendingTrend';
+import dynamic from 'next/dynamic';
+import { Skeleton } from '@/components/ui/skeleton';
 import { RecentExpenses } from '@/components/dashboard/RecentExpenses';
 import { MonthSelector } from '@/components/dashboard/MonthSelector';
 import { EmptyState } from '@/components/dashboard/EmptyState';
@@ -24,10 +24,27 @@ import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
 
+// Lazy load heavy chart components
+const SpendingByCategory = dynamic(
+  () => import('@/components/dashboard/SpendingByCategory').then(mod => mod.SpendingByCategory),
+  {
+    loading: () => <Skeleton className="h-[300px] w-full rounded-xl" />,
+    ssr: false
+  }
+);
+
+const DailySpendingTrend = dynamic(
+  () => import('@/components/dashboard/DailySpendingTrend').then(mod => mod.DailySpendingTrend),
+  {
+    loading: () => <Skeleton className="h-[300px] w-full rounded-xl" />,
+    ssr: false
+  }
+);
+
 export default function TrackPage() {
   const router = useRouter();
   const { user } = useAuthStore();
-  const { currentHouseholdId, households, refreshKey } = useUiStore();
+  const { currentHouseholdId, households, refreshKey, budgets, setBudgets } = useUiStore();
 
   // Get current month in YYYY-MM format
   const getCurrentMonth = () => {
@@ -37,7 +54,7 @@ export default function TrackPage() {
 
   const [selectedMonth, setSelectedMonth] = useState(getCurrentMonth());
   const [selectedBudgetId, setSelectedBudgetId] = useState<string | undefined>(undefined);
-  const [budgets, setBudgets] = useState<Budget[]>([]);
+  // const [budgets, setBudgets] = useState<Budget[]>([]); // Removed local state
   const [dashboardData, setDashboardData] = useState<MonthlySummaryResponse | null>(null);
   const [recentExpenses, setRecentExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
@@ -59,6 +76,20 @@ export default function TrackPage() {
         return;
       }
 
+      // If we already have budgets in store, use them
+      if (budgets.length > 0) {
+        // Auto-select primary budget or first budget if not already selected
+        if (!selectedBudgetId) {
+          const primaryBudget = budgets.find((b: any) => b.isPrimary);
+          if (primaryBudget) {
+            setSelectedBudgetId(primaryBudget.id);
+          } else if (budgets.length > 0) {
+            setSelectedBudgetId(budgets[0].id);
+          }
+        }
+        return;
+      }
+
       try {
         const budgetList = await getBudgets(currentHouseholdId);
         setBudgets(budgetList);
@@ -77,7 +108,7 @@ export default function TrackPage() {
     };
 
     fetchBudgets();
-  }, [currentHouseholdId, isInitialLoad, refreshKey]);
+  }, [currentHouseholdId, isInitialLoad, refreshKey, budgets, setBudgets, selectedBudgetId]);
 
   // Fetch dashboard data when household, month, or budget changes
   useEffect(() => {

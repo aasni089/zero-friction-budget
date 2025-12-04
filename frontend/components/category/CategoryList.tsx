@@ -45,10 +45,18 @@ import { toast } from 'sonner';
  * For budget-specific categories, see CreateBudgetDialog and EditBudgetDialog.
  */
 export function CategoryList() {
-    const { currentHouseholdId } = useUiStore();
+    const {
+        currentHouseholdId,
+        categories: storeCategories,
+        setCategories: setStoreCategories,
+        categoriesLoading: storeCategoriesLoading,
+        setCategoriesLoading: setStoreCategoriesLoading
+    } = useUiStore();
 
-    const [categories, setCategories] = useState<Category[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
+    // Use store state
+    const categories = storeCategories;
+    const isLoading = storeCategoriesLoading;
+
     const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
     const [editingCategory, setEditingCategory] = useState<Category | undefined>(undefined);
     const [deletingCategoryId, setDeletingCategoryId] = useState<string | null>(null);
@@ -56,22 +64,26 @@ export function CategoryList() {
     const fetchCategories = async () => {
         if (!currentHouseholdId) return;
 
+        // If we already have categories, don't re-fetch unless forced (e.g. by a refresh key, but here we just check length)
+        // Actually, for the main list, we might want to ensure freshness, but let's stick to the caching strategy.
+        if (storeCategories.length > 0) return;
+
         try {
-            setIsLoading(true);
+            setStoreCategoriesLoading(true);
             // Fetch only household-level categories (no budgetId parameter)
             const response = await getCategories(currentHouseholdId);
-            setCategories(response.categories || []);
+            setStoreCategories(response.categories || []);
         } catch (error) {
             console.error('Failed to fetch categories:', error);
             toast.error('Failed to load categories');
         } finally {
-            setIsLoading(false);
+            setStoreCategoriesLoading(false);
         }
     };
 
     useEffect(() => {
         fetchCategories();
-    }, [currentHouseholdId]);
+    }, [currentHouseholdId, storeCategories.length, setStoreCategories, setStoreCategoriesLoading]);
 
     const handleCreate = async (data: CreateCategoryData | UpdateCategoryData) => {
         if (!currentHouseholdId) {
@@ -82,9 +94,11 @@ export function CategoryList() {
         try {
             // Create household-level category (budgetId will be null)
             const createData = { ...(data as CreateCategoryData), householdId: currentHouseholdId };
-            await createCategory(createData);
+            const newCategory = await createCategory(createData);
+
+            // Update store
+            setStoreCategories([...storeCategories, newCategory]);
             toast.success('Category created');
-            fetchCategories();
         } catch (error) {
             console.error('Failed to create category:', error);
             toast.error('Failed to create category');
@@ -96,9 +110,12 @@ export function CategoryList() {
         if (!editingCategory) return;
 
         try {
-            await updateCategory(editingCategory.id, data as UpdateCategoryData);
+            const updatedCategory = await updateCategory(editingCategory.id, data as UpdateCategoryData);
+
+            // Update store
+            setStoreCategories(storeCategories.map(c => c.id === editingCategory.id ? updatedCategory : c));
+
             toast.success('Category updated');
-            fetchCategories();
             setEditingCategory(undefined);
         } catch (error) {
             console.error('Failed to update category:', error);
@@ -112,8 +129,11 @@ export function CategoryList() {
 
         try {
             await deleteCategory(deletingCategoryId);
+
+            // Update store
+            setStoreCategories(storeCategories.filter(c => c.id !== deletingCategoryId));
+
             toast.success('Category deleted');
-            setCategories(categories.filter(c => c.id !== deletingCategoryId));
         } catch (error) {
             console.error('Failed to delete category:', error);
             toast.error('Failed to delete category');

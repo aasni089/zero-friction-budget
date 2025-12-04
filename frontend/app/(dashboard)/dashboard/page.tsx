@@ -10,13 +10,36 @@ import { getExpenses } from '@/lib/api/expense-client';
 import { ArrowRight, Plus, TrendingUp, Wallet, Calendar as CalendarIcon, ChevronLeft, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
 import { format, startOfMonth, endOfMonth, subMonths, addMonths, isSameMonth } from 'date-fns';
+import dynamic from 'next/dynamic';
 import { Skeleton } from '@/components/ui/skeleton';
-import { SpendingTrendChart } from '@/components/dashboard/SpendingTrendChart';
-import { CategoryBreakdownChart } from '@/components/dashboard/CategoryBreakdownChart';
-import { BudgetVsActualChart } from '@/components/dashboard/BudgetVsActualChart';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
+
+// Lazy load charts
+const SpendingTrendChart = dynamic(
+  () => import('@/components/dashboard/SpendingTrendChart').then(mod => mod.SpendingTrendChart),
+  {
+    loading: () => <Skeleton className="h-[300px] w-full rounded-xl" />,
+    ssr: false // Charts rely on browser APIs often
+  }
+);
+
+const CategoryBreakdownChart = dynamic(
+  () => import('@/components/dashboard/CategoryBreakdownChart').then(mod => mod.CategoryBreakdownChart),
+  {
+    loading: () => <Skeleton className="h-[300px] w-full rounded-xl" />,
+    ssr: false
+  }
+);
+
+const BudgetVsActualChart = dynamic(
+  () => import('@/components/dashboard/BudgetVsActualChart').then(mod => mod.BudgetVsActualChart),
+  {
+    loading: () => <Skeleton className="h-[300px] w-full rounded-xl" />,
+    ssr: false
+  }
+);
 
 export default function DashboardPage() {
   const { user } = useAuthStore();

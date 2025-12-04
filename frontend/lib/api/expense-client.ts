@@ -29,6 +29,7 @@ export interface Expense {
     name: string;
     email: string;
   };
+  archivedBudgetName?: string;
 }
 
 export interface CreateExpenseData {

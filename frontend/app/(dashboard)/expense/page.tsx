@@ -32,13 +32,7 @@ export default function ExpensePage() {
     const fetchData = async () => {
       // Wait for household context to be ready
       if (households.length === 0 && currentHouseholdId === null) {
-        // Still loading households or no households exist
-        if (households.length === 0) {
-          // If we're sure there are no households (e.g. after auth load), stop loading
-          // But here we rely on the store's state. 
-          // Let's assume if we have no households and no ID, we are waiting.
-          return;
-        }
+        return;
       }
 
       if (!currentHouseholdId) {
@@ -50,17 +44,21 @@ export default function ExpensePage() {
 
       try {
         setIsInitialLoad(true);
-        setBudgetsLoading(true);
-        setLoadingPrimaryBudget(true);
         setError(null);
 
-        const [budgetsData, primaryBudgetData] = await Promise.all([
-          getBudgets(currentHouseholdId),
-          getPrimaryBudget(currentHouseholdId).catch(() => null) // Allow primary budget to fail (e.g. 404)
-        ]);
+        // Only fetch budgets if we don't have them
+        if (budgets.length === 0) {
+          setBudgetsLoading(true);
+          const budgetsData = await getBudgets(currentHouseholdId);
+          setBudgets(budgetsData || []);
+        }
 
-        setBudgets(budgetsData || []);
+        // Always fetch primary budget to ensure it's up to date
+        // (or we could derive it from budgets if we trust the store)
+        setLoadingPrimaryBudget(true);
+        const primaryBudgetData = await getPrimaryBudget(currentHouseholdId).catch(() => null);
         setPrimaryBudget(primaryBudgetData);
+
       } catch (error: any) {
         console.error('Failed to fetch data:', error);
         setError(error?.message || 'Failed to load data. Please try again.');
@@ -72,7 +70,7 @@ export default function ExpensePage() {
     };
 
     fetchData();
-  }, [currentHouseholdId, setBudgets, setBudgetsLoading]);
+  }, [currentHouseholdId, setBudgets, setBudgetsLoading, budgets.length]);
 
   // Loading state - show full page skeleton
   if (isInitialLoad || (budgetsLoading && budgets.length === 0)) {
