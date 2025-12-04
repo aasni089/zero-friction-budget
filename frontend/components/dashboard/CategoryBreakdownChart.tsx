@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 import { Card } from '@/components/ui/card';
 
@@ -11,6 +12,8 @@ interface CategoryBreakdownChartProps {
 }
 
 export function CategoryBreakdownChart({ expenses }: CategoryBreakdownChartProps) {
+    const router = useRouter();
+
     const data = useMemo(() => {
         const categoryMap = new Map();
 
@@ -18,10 +21,11 @@ export function CategoryBreakdownChart({ expenses }: CategoryBreakdownChartProps
             if (expense.type !== 'EXPENSE') return;
 
             const categoryName = expense.category?.name || 'Uncategorized';
+            const categoryId = expense.category?.id;
             const color = expense.category?.color || 'var(--muted)';
 
             if (!categoryMap.has(categoryName)) {
-                categoryMap.set(categoryName, { name: categoryName, value: 0, color });
+                categoryMap.set(categoryName, { name: categoryName, value: 0, color, categoryId });
             }
 
             const current = categoryMap.get(categoryName);
@@ -59,6 +63,12 @@ export function CategoryBreakdownChart({ expenses }: CategoryBreakdownChartProps
                             outerRadius={80}
                             paddingAngle={5}
                             dataKey="value"
+                            onClick={(data) => {
+                                if (data.categoryId) {
+                                    router.push(`/categories/${data.categoryId}`);
+                                }
+                            }}
+                            cursor="pointer"
                         >
                             {data.map((entry, index) => (
                                 <Cell key={`cell-${index}`} fill={entry.color} strokeWidth={0} />

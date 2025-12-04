@@ -18,7 +18,6 @@ import {
     AlertDialogTitle,
     AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { useUiStore } from '@/lib/stores/ui';
 import { deleteBudget } from '@/lib/api/budget-client';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -26,11 +25,11 @@ import { cn } from '@/lib/utils';
 interface BudgetCardProps {
     budget: Budget;
     onTogglePrimary?: (budgetId: string, isPrimary: boolean) => void;
+    onDelete?: (budgetId: string) => void;
     isUpdating?: boolean;
 }
 
-export function BudgetCard({ budget, onTogglePrimary, isUpdating }: BudgetCardProps) {
-    const { budgets, setBudgets } = useUiStore();
+export function BudgetCard({ budget, onTogglePrimary, onDelete, isUpdating }: BudgetCardProps) {
     const [isEditOpen, setIsEditOpen] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
 
@@ -48,8 +47,10 @@ export function BudgetCard({ budget, onTogglePrimary, isUpdating }: BudgetCardPr
             setIsDeleting(true);
             await deleteBudget(budget.id);
 
-            // Update store
-            setBudgets(budgets.filter(b => b.id !== budget.id));
+            // Notify parent to update its state
+            if (onDelete) {
+                onDelete(budget.id);
+            }
             toast.success('Budget deleted successfully');
         } catch (error: any) {
             console.error('Failed to delete budget:', error);

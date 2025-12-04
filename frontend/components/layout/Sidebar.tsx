@@ -14,6 +14,8 @@ import {
   LogOut,
   Plus,
   BarChart3,
+  RefreshCw,
+  Tags,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -34,6 +36,7 @@ import {
 import { useUiStore } from '@/lib/stores/ui';
 import { useAuthStore } from '@/lib/stores/auth';
 import { cn } from '@/lib/utils';
+import { Skeleton } from '@/components/ui/skeleton';
 import type { Household } from '@/lib/api/household-client';
 import { CreateHouseholdDialog } from '@/components/household/CreateHouseholdDialog';
 
@@ -41,6 +44,9 @@ const navigation = [
   { name: 'Expense', href: '/expense', icon: Home },
   { name: 'Track', href: '/track', icon: BarChart3 },
   { name: 'Budgets', href: '/budgets', icon: Wallet },
+  { name: 'Recurring', href: '/recurring', icon: RefreshCw },
+  { name: 'Household', href: '/household', icon: Users },
+  { name: 'Categories', href: '/categories', icon: Tags },
 ];
 
 interface SidebarProps {
@@ -171,6 +177,13 @@ export function Sidebar({ className }: SidebarProps) {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+          </div>
+        )}
+
+        {/* Loading skeleton for household dropdown */}
+        {!sidebarCollapsed && householdsLoading && (
+          <div className="p-4 border-b border-sidebar-border">
+            <Skeleton className="h-[42px] w-full" />
           </div>
         )}
 

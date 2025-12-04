@@ -384,7 +384,12 @@ export function CreateBudgetDialog({
                                 {showCategoryForm && (
                                     <div className="border-t pt-3 mt-2 space-y-3">
                                         <div className="flex items-center justify-between">
-                                            <Label className="text-sm font-medium">Create New Category</Label>
+                                            <div>
+                                                <Label className="text-sm font-medium">Create New Category</Label>
+                                                <p className="text-xs text-muted-foreground mt-0.5">
+                                                    Will be available across all budgets in this household
+                                                </p>
+                                            </div>
                                             <Button
                                                 type="button"
                                                 variant="ghost"

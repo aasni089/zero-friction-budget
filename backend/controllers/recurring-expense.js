@@ -1,6 +1,7 @@
 const { z } = require('zod');
 const logger = require('../config/logger');
 const prisma = require('../config/database');
+const { broadcastExpenseCreated } = require('../services/realtime');
 
 // ============================================================================
 // VALIDATION SCHEMAS
@@ -11,7 +12,7 @@ const createRecurringExpenseSchema = z.object({
   amount: z.number().positive('Amount must be positive'),
   frequency: z.enum(['DAILY', 'WEEKLY', 'BIWEEKLY', 'MONTHLY', 'QUARTERLY', 'YEARLY']),
   description: z.string().max(255).optional().nullable(),
-  categoryId: z.string().cuid().optional().nullable(),
+  categoryId: z.string().uuid().optional().nullable(),
   dayOfWeek: z.number().int().min(0).max(6).optional().nullable(), // 0=Sunday, 6=Saturday
   dayOfMonth: z.number().int().min(1).max(31).optional().nullable(),
   monthOfYear: z.number().int().min(1).max(12).optional().nullable(),
@@ -39,7 +40,7 @@ const updateRecurringExpenseSchema = z.object({
   amount: z.number().positive().optional(),
   frequency: z.enum(['DAILY', 'WEEKLY', 'BIWEEKLY', 'MONTHLY', 'QUARTERLY', 'YEARLY']).optional(),
   description: z.string().max(255).optional().nullable(),
-  categoryId: z.string().cuid().optional().nullable(),
+  categoryId: z.string().uuid().optional().nullable(),
   dayOfWeek: z.number().int().min(0).max(6).optional().nullable(),
   dayOfMonth: z.number().int().min(1).max(31).optional().nullable(),
   monthOfYear: z.number().int().min(1).max(12).optional().nullable(),
@@ -712,7 +713,7 @@ exports.deleteRecurringExpense = async (req, res) => {
 };
 
 /**
- * @route   POST /recurring-expenses/:id/pause
+ * @route   POST /recurring-expenses/:id/toggle
  * @desc    Pause/resume recurring expense
  * @access  Private (creator or admin/owner)
  */
@@ -807,64 +808,98 @@ exports.toggleRecurringExpense = async (req, res) => {
 
 /**
  * @route   POST /recurring-expenses/generate
- * @desc    Generate expenses from recurring expenses (on-demand)
- * @access  Private (authenticated users - runs for all households they belong to)
+ * @desc    Generate expenses from due recurring expenses (on-demand)
+ * @access  Private (authenticated users)
  */
 exports.generateRecurringExpenses = async (req, res) => {
   try {
-    const userId = req.user.id;
     const now = new Date();
 
-    // Get all households user belongs to
-    const memberships = await prisma.householdMember.findMany({
-      where: { userId },
-      select: { householdId: true },
-    });
-
-    const householdIds = memberships.map(m => m.householdId);
-
-    // Get all active recurring expenses that are due
-    const dueRecurringExpenses = await prisma.recurringExpense.findMany({
+    // Find all active recurring expenses that are due (nextRun <= now)
+    const dueExpenses = await prisma.recurringExpense.findMany({
       where: {
-        householdId: { in: householdIds },
         isActive: true,
-        nextRun: { lte: now },
+        nextRun: {
+          lte: now,
+        },
         OR: [
           { endDate: null },
-          { endDate: { gte: now } },
-        ],
+          { endDate: { gt: now } }
+        ]
       },
       include: {
         category: true,
-      },
+        user: true,
+      }
     });
 
-    const generatedExpenses = [];
+    if (dueExpenses.length === 0) {
+      return res.json({
+        success: true,
+        data: {
+          generated: 0,
+          expenses: [],
+          errors: [],
+        },
+      });
+    }
+
+    const generated = [];
     const errors = [];
 
-    // Process each recurring expense
-    for (const recurring of dueRecurringExpenses) {
+    // Process each due expense
+    for (const recurring of dueExpenses) {
       try {
-        // Create expense
+        // Double check endDate
+        if (recurring.endDate && recurring.endDate <= now) {
+          continue;
+        }
+
+        // Find active budget for this household that covers this date
+        // This automatically associates the recurring expense with the correct budget
+        const activeBudget = await prisma.budget.findFirst({
+          where: {
+            householdId: recurring.householdId,
+            startDate: { lte: now },
+            OR: [
+              { endDate: null },
+              { endDate: { gte: now } }
+            ]
+          },
+          orderBy: {
+            startDate: 'desc' // Prefer most recent budget if multiple overlap
+          }
+        });
+
+        // Create the expense
         const expense = await prisma.expense.create({
           data: {
             userId: recurring.userId,
             householdId: recurring.householdId,
+            budgetId: activeBudget ? activeBudget.id : null,
             categoryId: recurring.categoryId,
             amount: recurring.amount,
-            description: recurring.description,
-            date: recurring.nextRun,
+            description: recurring.description || 'Recurring Expense',
+            date: now,
             type: 'EXPENSE',
             isRecurring: true,
             recurringId: recurring.id,
           },
+          include: {
+            category: true,
+            user: {
+              select: {
+                id: true,
+                name: true,
+                image: true,
+              }
+            }
+          }
         });
 
-        generatedExpenses.push(expense);
-
-        // Calculate next run
+        // Calculate next run date
         const nextRun = calculateNextRun(
-          recurring.nextRun,
+          recurring.nextRun, // Base calculation on scheduled run, not actual run time to prevent drift
           recurring.frequency,
           recurring.dayOfWeek,
           recurring.dayOfMonth,
@@ -875,27 +910,32 @@ exports.generateRecurringExpenses = async (req, res) => {
         await prisma.recurringExpense.update({
           where: { id: recurring.id },
           data: {
-            lastRun: recurring.nextRun,
+            lastRun: now,
             nextRun,
           },
         });
 
-        logger.info(`Generated expense ${expense.id} from recurring expense ${recurring.id}`);
-      } catch (error) {
-        logger.error(`Failed to generate expense from recurring ${recurring.id}:`, error);
+        // Broadcast real-time event
+        await broadcastExpenseCreated(recurring.householdId, expense);
+
+        generated.push(expense);
+      } catch (err) {
+        logger.error(`Error generating expense for recurring ${recurring.id}:`, err);
         errors.push({
-          recurringExpenseId: recurring.id,
-          error: error.message,
+          recurringId: recurring.id,
+          error: err.message,
         });
       }
     }
 
+    logger.info(`Generated ${generated.length} recurring expenses`);
+
     res.json({
       success: true,
       data: {
-        generated: generatedExpenses.length,
-        expenses: generatedExpenses,
-        errors: errors.length > 0 ? errors : undefined,
+        generated: generated.length,
+        expenses: generated,
+        errors,
       },
     });
   } catch (error) {
@@ -908,5 +948,3 @@ exports.generateRecurringExpenses = async (req, res) => {
     });
   }
 };
-
-module.exports = exports;

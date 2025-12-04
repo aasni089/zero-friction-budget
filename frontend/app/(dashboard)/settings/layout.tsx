@@ -2,7 +2,7 @@
 
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { User, Shield, Home } from 'lucide-react';
+import { User, Shield, Home, RefreshCw, Tags } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const settingsTabs = [
@@ -18,12 +18,6 @@ const settingsTabs = [
         icon: Shield,
         description: 'Security and authentication settings'
     },
-    {
-        name: 'Household',
-        href: '/settings/household',
-        icon: Home,
-        description: 'Manage household members and settings'
-    }
 ];
 
 export default function SettingsLayout({

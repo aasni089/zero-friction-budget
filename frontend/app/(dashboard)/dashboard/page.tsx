@@ -20,7 +20,7 @@ import { cn } from '@/lib/utils';
 
 export default function DashboardPage() {
   const { user } = useAuthStore();
-  const { currentHouseholdId } = useUiStore();
+  const { currentHouseholdId, refreshKey } = useUiStore();
   const [currentDate, setCurrentDate] = useState(new Date());
 
   const [stats, setStats] = useState({
@@ -108,7 +108,7 @@ export default function DashboardPage() {
     };
 
     fetchData();
-  }, [currentHouseholdId, currentDate]);
+  }, [currentHouseholdId, currentDate, refreshKey]);
 
   const handlePrevMonth = () => setCurrentDate(subMonths(currentDate, 1));
   const handleNextMonth = () => setCurrentDate(addMonths(currentDate, 1));

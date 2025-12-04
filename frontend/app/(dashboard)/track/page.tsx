@@ -20,6 +20,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Button } from '@/components/ui/button';
+import { ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function TrackPage() {
@@ -145,16 +147,25 @@ export default function TrackPage() {
   }
 
   return (
-    <div className="container mx-auto p-4 md:p-6 space-y-6">
+    <div className="max-w-6xl mx-auto px-6 pt-12 pb-8 space-y-8">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Track Spending</h1>
-          <p className="text-gray-500 mt-1">
-            {dashboardData?.selectedBudget
-              ? `Tracking: ${dashboardData.selectedBudget.name}`
-              : 'Overview of your household spending and trends'}
-          </p>
+        <div className="flex items-center gap-4">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => router.push('/expense')}
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Track Spending</h1>
+            <p className="text-muted-foreground mt-1">
+              {dashboardData?.selectedBudget
+                ? `Tracking: ${dashboardData.selectedBudget.name}`
+                : 'Overview of your household spending and trends'}
+            </p>
+          </div>
         </div>
       </div>
 

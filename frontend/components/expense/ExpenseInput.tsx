@@ -276,13 +276,13 @@ export function ExpenseInput({ primaryBudgetId, onExpenseCreated, children }: Ex
                       >
                         <div className="flex items-center gap-3">
                           <div
-                            className="w-8 h-8 rounded-full flex items-center justify-center text-sm shadow-sm"
+                            className="w-8 h-8 rounded-full flex items-center justify-center text-base shadow-sm"
                             style={{
                               backgroundColor: expense.category?.color ? `${expense.category.color}20` : 'var(--muted)',
                               color: expense.category?.color || 'var(--foreground)'
                             }}
                           >
-                            {expense.category?.name?.[0] || '?'}
+                            {expense.category?.icon || '💰'}
                           </div>
                           <div>
                             <p className="font-medium text-foreground text-sm">

@@ -158,6 +158,8 @@ model Budget {
 
   expenses    Expense[]
   categories  BudgetCategory[]  // Line items for multi-category budgets
+  ownedCategories Category[] @relation("BudgetCategories")  // Categories specific to this budget
+  recurringExpenses RecurringExpense[]
 
   primaryForHousehold Household? @relation("PrimaryBudget")
 
@@ -203,6 +205,9 @@ model Category {
   householdId String
   household   Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
 
+  budgetId    String?
+  budgetOwner Budget?   @relation("BudgetCategories", fields: [budgetId], references: [id], onDelete: Cascade)
+
   name        String
   icon        String?   // Emoji or icon identifier
   color       String?   // Hex color code
@@ -220,6 +225,7 @@ model Category {
   updatedAt   DateTime @updatedAt
 
   @@index([householdId])
+  @@index([budgetId])
   @@index([parentId])
 }
 
@@ -238,6 +244,7 @@ model Expense {
 
   budgetId    String?
   budget      Budget?  @relation(fields: [budgetId], references: [id], onDelete: SetNull)
+  archivedBudgetName String? // Preserves budget name after deletion for historical records
 
   categoryId  String?
   category    Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
@@ -287,6 +294,9 @@ model RecurringExpense {
   categoryId  String?
   category    Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
 
+  budgetId    String?
+  budget      Budget? @relation(fields: [budgetId], references: [id], onDelete: SetNull)
+
   // Day/Date specification based on frequency
   dayOfWeek   Int?      // 0-6 (0=Sunday, 6=Saturday) for WEEKLY, BIWEEKLY
   dayOfMonth  Int?      // 1-31 for MONTHLY, YEARLY
@@ -307,6 +317,7 @@ model RecurringExpense {
   @@index([userId])
   @@index([nextRun])
   @@index([isActive])
+  @@index([budgetId])
 }
 
 enum RecurringFrequency {

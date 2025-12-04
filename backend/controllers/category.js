@@ -23,6 +23,7 @@ const DEFAULT_CATEGORIES = [
 
 const createCategorySchema = z.object({
   householdId: z.string().cuid('Invalid household ID'),
+  budgetId: z.string().cuid('Invalid budget ID').optional().nullable(),
   name: z.string().min(1, 'Name is required').max(100, 'Name too long'),
   icon: z.string().max(10).optional().nullable(),
   color: z.string().regex(/^#[0-9A-Fa-f]{6}$/, 'Invalid hex color').optional().nullable(),
@@ -52,7 +53,7 @@ const seedCategoriesSchema = z.object({
 exports.listCategories = async (req, res) => {
   try {
     const userId = req.user.id;
-    const { householdId } = req.query;
+    const { householdId, budgetId, onlyLineItems } = req.query;
 
     if (!householdId) {
       return res.status(400).json({
@@ -82,42 +83,117 @@ exports.listCategories = async (req, res) => {
       });
     }
 
-    // Get categories with counts
-    const categories = await prisma.category.findMany({
-      where: { householdId },
-      include: {
-        parent: {
-          select: {
-            id: true,
-            name: true,
-            icon: true,
-            color: true,
+    // If budgetId provided, verify user has access to that budget
+    if (budgetId) {
+      const budget = await prisma.budget.findUnique({
+        where: { id: budgetId },
+      });
+
+      if (!budget || budget.householdId !== householdId) {
+        return res.status(404).json({
+          success: false,
+          error: {
+            message: 'Budget not found or access denied',
+          },
+        });
+      }
+    }
+
+    let categories;
+
+    // If onlyLineItems=true, return only categories from budget's line items
+    if (budgetId && onlyLineItems === 'true') {
+      // Get budget line items with their categories
+      const budgetCategories = await prisma.budgetCategory.findMany({
+        where: { budgetId },
+        include: {
+          category: {
+            include: {
+              parent: {
+                select: {
+                  id: true,
+                  name: true,
+                  icon: true,
+                  color: true,
+                },
+              },
+              children: {
+                select: {
+                  id: true,
+                  name: true,
+                  icon: true,
+                  color: true,
+                },
+              },
+              _count: {
+                select: {
+                  expenses: true,
+                  budgets: true,
+                },
+              },
+            },
           },
         },
-        children: {
-          select: {
-            id: true,
-            name: true,
-            icon: true,
-            color: true,
+        orderBy: {
+          category: {
+            name: 'asc',
           },
         },
-        _count: {
-          select: {
-            expenses: true,
-            budgets: true,
+      });
+
+      // Extract categories from budget line items
+      categories = budgetCategories.map(bc => bc.category);
+    } else {
+      // Original behavior: Get categories with counts
+      // If budgetId provided: return household-level (budgetId=null) + budget-specific categories
+      // If no budgetId: return only household-level categories (budgetId=null)
+      const whereClause = budgetId
+        ? {
+            householdId,
+            OR: [
+              { budgetId: null }, // Household-level categories
+              { budgetId }, // Budget-specific categories
+            ],
+          }
+        : { householdId, budgetId: null };
+
+      categories = await prisma.category.findMany({
+        where: whereClause,
+        include: {
+          parent: {
+            select: {
+              id: true,
+              name: true,
+              icon: true,
+              color: true,
+            },
+          },
+          children: {
+            select: {
+              id: true,
+              name: true,
+              icon: true,
+              color: true,
+            },
+          },
+          _count: {
+            select: {
+              expenses: true,
+              budgets: true,
+            },
           },
         },
-      },
-      orderBy: {
-        name: 'asc',
-      },
-    });
+        orderBy: {
+          name: 'asc',
+        },
+      });
+    }
 
     // Format response with usage counts
     const formattedCategories = categories.map((category) => ({
       id: category.id,
       householdId: category.householdId,
+      budgetId: category.budgetId,
       name: category.name,
       icon: category.icon,
       color: category.color,
@@ -211,13 +287,30 @@ exports.createCategory = async (req, res) => {
       }
     }
 
-    // Create category
+    // If budgetId provided, verify budget belongs to the household
+    if (validatedData.budgetId) {
+      const budget = await prisma.budget.findUnique({
+        where: { id: validatedData.budgetId },
+      });
+
+      if (!budget || budget.householdId !== validatedData.householdId) {
+        return res.status(400).json({
+          success: false,
+          error: {
+            message: 'Budget not found or does not belong to this household',
+          },
+        });
+      }
+    }
+
+    // Create category (budgetId defaults to null for household-level)
     const category = await prisma.category.create({
       data: {
         name: validatedData.name,
         icon: validatedData.icon || null,
         color: validatedData.color || null,
         householdId: validatedData.householdId,
+        budgetId: validatedData.budgetId || null,
         parentId: validatedData.parentId || null,
       },
       include: {

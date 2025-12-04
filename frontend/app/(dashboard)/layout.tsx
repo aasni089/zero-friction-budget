@@ -12,6 +12,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
+import { supabase } from '@/lib/supabase';
 
 export default function DashboardLayout({
   children,
@@ -27,6 +28,7 @@ export default function DashboardLayout({
     setHouseholds,
     setHouseholdsLoading,
     householdsLoading,
+    currentHouseholdId,
   } = useUiStore();
 
   const [householdsError, setHouseholdsError] = useState<string | null>(null);
@@ -61,6 +63,45 @@ export default function DashboardLayout({
       setHouseholdsLoading(false);
     }
   }, [isAuthenticated, authLoading, hasFetchedHouseholds, setHouseholds, setHouseholdsLoading]);
+
+  // Real-time updates subscription
+  useEffect(() => {
+    if (!isAuthenticated || !currentHouseholdId) return;
+
+    // Import dynamically to avoid SSR issues if needed, or just use the imported function
+    const { subscribeToHousehold } = require('@/lib/supabase');
+    const { toast } = require('sonner');
+
+    console.log(`Setting up real-time subscription for household: ${currentHouseholdId}`);
+
+    const channel = subscribeToHousehold(currentHouseholdId, {
+      onExpenseCreated: (payload: any) => {
+        console.log('Real-time: Expense created', payload);
+        useUiStore.getState().triggerRefresh();
+        toast.success(`New expense added`);
+      },
+      onExpenseUpdated: (payload: any) => {
+        console.log('Real-time: Expense updated', payload);
+        useUiStore.getState().triggerRefresh();
+        // toast.info(`Expense updated`);
+      },
+      onExpenseDeleted: (payload: any) => {
+        console.log('Real-time: Expense deleted', payload);
+        useUiStore.getState().triggerRefresh();
+        // toast.info(`Expense deleted`);
+      },
+      onBudgetUpdated: (payload: any) => {
+        console.log('Real-time: Budget updated', payload);
+        useUiStore.getState().triggerRefresh();
+        toast.info(`Budget updated`);
+      }
+    });
+
+    return () => {
+      console.log('Cleaning up real-time subscription');
+      if (channel) supabase?.removeChannel(channel);
+    };
+  }, [isAuthenticated, currentHouseholdId]);
 
   // Retry handler for household fetch errors
   const retryFetchHouseholds = async () => {
@@ -136,16 +177,8 @@ export default function DashboardLayout({
             </div>
           )}
 
-          {/* Show loading skeleton while fetching households */}
-          {householdsLoading && (
-            <div className="space-y-4">
-              <Skeleton className="h-8 w-48" />
-              <Skeleton className="h-64 w-full" />
-            </div>
-          )}
-
-          {/* Render children once households are loaded */}
-          {!householdsLoading && children}
+          {/* Render children - pages handle their own loading states */}
+          {children}
         </main>
       </div>
     </div>

@@ -15,6 +15,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
     Select,
     SelectContent,
@@ -62,6 +63,7 @@ export function EditBudgetDialog({
     const [showCategoryForm, setShowCategoryForm] = useState(false);
     const [newCategoryName, setNewCategoryName] = useState('');
     const [newCategoryColor, setNewCategoryColor] = useState('#3B82F6');
+    const [isBudgetSpecific, setIsBudgetSpecific] = useState(false);
     const [isCreatingCategory, setIsCreatingCategory] = useState(false);
 
     // Fetch categories when dialog opens
@@ -71,7 +73,8 @@ export function EditBudgetDialog({
 
             try {
                 setIsLoadingCategories(true);
-                const response = await getCategories(currentHouseholdId);
+                // Fetch both household-level AND budget-specific categories
+                const response = await getCategories(currentHouseholdId, budget.id);
                 setCategories(response.categories || []);
             } catch (error) {
                 console.error('Failed to fetch categories:', error);
@@ -82,7 +85,7 @@ export function EditBudgetDialog({
         };
 
         fetchCategories();
-    }, [currentHouseholdId, open]);
+    }, [currentHouseholdId, budget.id, open]);
 
     // Reset form when budget changes or dialog opens
     useEffect(() => {
@@ -141,15 +144,18 @@ export function EditBudgetDialog({
                 name: newCategoryName.trim(),
                 color: newCategoryColor,
                 householdId: currentHouseholdId,
+                budgetId: isBudgetSpecific ? budget.id : undefined,
             });
 
             // Add to categories list
             setCategories([...categories, newCategory]);
-            toast.success(`Category "${newCategoryName}" created`);
+            const scope = isBudgetSpecific ? 'budget-specific' : 'household-level';
+            toast.success(`${scope} category "${newCategoryName}" created`);
 
             // Reset form
             setNewCategoryName('');
             setNewCategoryColor('#3B82F6');
+            setIsBudgetSpecific(false);
             setShowCategoryForm(false);
         } catch (error: any) {
             console.error('Failed to create category:', error);
@@ -328,32 +334,41 @@ export function EditBudgetDialog({
                                                         handleUpdateLineItem(item.id, 'categoryId', value);
                                                     }
                                                 }}
+                                                disabled={isLoadingCategories}
                                             >
                                                 <SelectTrigger>
-                                                    <SelectValue placeholder="Select category" />
+                                                    <SelectValue placeholder={isLoadingCategories ? "Loading categories..." : "Select category"} />
                                                 </SelectTrigger>
                                                 <SelectContent>
-                                                    {categories.map((category) => (
-                                                        <SelectItem
-                                                            key={category.id}
-                                                            value={category.id}
-                                                            disabled={lineItems.some(li => li.categoryId === category.id && li.id !== item.id)}
-                                                        >
-                                                            <div className="flex items-center gap-2">
-                                                                {category.color && (
-                                                                    <div
-                                                                        className="w-3 h-3 rounded-full"
-                                                                        style={{ backgroundColor: category.color }}
-                                                                    />
-                                                                )}
-                                                                {category.icon && <span>{category.icon}</span>}
-                                                                <span>{category.name}</span>
-                                                            </div>
-                                                        </SelectItem>
-                                                    ))}
-                                                    <SelectItem value="__create_new__">
-                                                        <span className="text-blue-600 font-medium">+ Create New Category</span>
-                                                    </SelectItem>
+                                                    {isLoadingCategories ? (
+                                                        <div className="flex items-center justify-center py-6">
+                                                            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                                                        </div>
+                                                    ) : (
+                                                        <>
+                                                            {categories.map((category) => (
+                                                                <SelectItem
+                                                                    key={category.id}
+                                                                    value={category.id}
+                                                                    disabled={lineItems.some(li => li.categoryId === category.id && li.id !== item.id)}
+                                                                >
+                                                                    <div className="flex items-center gap-2">
+                                                                        {category.color && (
+                                                                            <div
+                                                                                className="w-3 h-3 rounded-full"
+                                                                                style={{ backgroundColor: category.color }}
+                                                                            />
+                                                                        )}
+                                                                        {category.icon && <span>{category.icon}</span>}
+                                                                        <span>{category.name}</span>
+                                                                    </div>
+                                                                </SelectItem>
+                                                            ))}
+                                                            <SelectItem value="__create_new__">
+                                                                <span className="text-blue-600 font-medium">+ Create New Category</span>
+                                                            </SelectItem>
+                                                        </>
+                                                    )}
                                                 </SelectContent>
                                             </Select>
                                         </div>
@@ -398,6 +413,7 @@ export function EditBudgetDialog({
                                                     setShowCategoryForm(false);
                                                     setNewCategoryName('');
                                                     setNewCategoryColor('#3B82F6');
+                                                    setIsBudgetSpecific(false);
                                                 }}
                                             >
                                                 Cancel
@@ -434,6 +450,24 @@ export function EditBudgetDialog({
                                                 )}
                                             </Button>
                                         </div>
+                                        <div className="flex items-center space-x-2">
+                                            <Checkbox
+                                                id="budget-specific"
+                                                checked={isBudgetSpecific}
+                                                onCheckedChange={(checked) => setIsBudgetSpecific(checked as boolean)}
+                                            />
+                                            <label
+                                                htmlFor="budget-specific"
+                                                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                                            >
+                                                Budget-specific (only for this budget)
+                                            </label>
+                                        </div>
+                                        <p className="text-xs text-muted-foreground">
+                                            {isBudgetSpecific
+                                                ? 'This category will only be available for this budget'
+                                                : 'This category will be available across all budgets in this household'}
+                                        </p>
                                     </div>
                                 )}
 
