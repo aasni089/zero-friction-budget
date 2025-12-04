@@ -2,6 +2,136 @@
 
 This document provides comprehensive instructions for containerizing and deploying the Zero Friction Budget application using Docker.
 
+## Quick Start
+
+### First-Time Setup
+
+1. **Prerequisites**:
+   ```bash
+   # Verify installations
+   docker --version          # Docker 20.10+
+   docker-compose --version  # Docker Compose 2.0+
+   node --version           # Node.js 20+
+   npm --version            # npm 10+
+   ```
+
+2. **Clone and Configure**:
+   ```bash
+   # Clone repository
+   git clone https://github.com/aasni089/zero-friction-budget.git
+   cd zero-friction-budget
+
+   # Checkout Phase 6A branch
+   git checkout phase-6a-production-packaging
+
+   # Setup backend environment
+   cd backend
+   cp .env.example .env
+   # Edit .env with your Supabase credentials
+   npm install
+   npx prisma generate
+   npx prisma migrate deploy
+   cd ..
+
+   # Setup frontend environment
+   cd frontend
+   cp .env.example .env.local
+   # Edit .env.local with backend API URL (http://localhost:5000)
+   npm install
+   cd ..
+   ```
+
+3. **Build Docker Images**:
+   ```bash
+   # Build backend image
+   docker build -t budget-backend:latest ./backend
+
+   # Build frontend image
+   docker build -t budget-frontend:latest ./frontend
+
+   # Verify images
+   docker images | grep budget
+   ```
+
+4. **Run with Docker Compose** (Development):
+   ```bash
+   # Start all services
+   docker-compose up -d
+
+   # Check service health
+   docker-compose ps
+
+   # View logs
+   docker-compose logs -f
+
+   # Access application
+   # Frontend: http://localhost:3000
+   # Backend API: http://localhost:5000
+   # Health check: http://localhost:5000/health
+   ```
+
+5. **Stop Services**:
+   ```bash
+   # Stop services
+   docker-compose down
+
+   # Stop and remove volumes (clean slate)
+   docker-compose down -v
+   ```
+
+### Production Deployment Quick Start
+
+1. **Build and Tag Production Images**:
+   ```bash
+   # Backend
+   docker build -t ghcr.io/YOUR_USERNAME/budget-tracker-backend:v1.0.0 ./backend
+   docker push ghcr.io/YOUR_USERNAME/budget-tracker-backend:v1.0.0
+
+   # Frontend
+   docker build -t ghcr.io/YOUR_USERNAME/budget-tracker-frontend:v1.0.0 ./frontend
+   docker push ghcr.io/YOUR_USERNAME/budget-tracker-frontend:v1.0.0
+   ```
+
+2. **Configure Production Environment**:
+   ```bash
+   # Create production env files
+   cp backend/.env.example backend/.env.production
+   cp frontend/.env.example frontend/.env.production
+
+   # Edit with production values (Supabase production DB, etc.)
+   ```
+
+3. **Deploy with Production Compose**:
+   ```bash
+   # Set image versions
+   export BACKEND_VERSION=v1.0.0
+   export FRONTEND_VERSION=v1.0.0
+   export GITHUB_REPOSITORY_OWNER=YOUR_USERNAME
+
+   # Start production stack
+   docker-compose -f docker-compose.prod.yml up -d
+
+   # Verify deployment
+   docker-compose -f docker-compose.prod.yml ps
+   docker-compose -f docker-compose.prod.yml logs -f
+   ```
+
+4. **Setup SSL (Optional but Recommended)**:
+   ```bash
+   # First-time certificate generation
+   docker-compose -f docker-compose.prod.yml run --rm certbot certonly \
+     --webroot --webroot-path=/var/www/certbot \
+     -d your-domain.com \
+     --email your-email@example.com \
+     --agree-tos
+
+   # Enable HTTPS in nginx.conf (uncomment HTTPS server block)
+   # Then restart nginx
+   docker-compose -f docker-compose.prod.yml restart nginx
+   ```
+
+---
+
 ## Overview
 
 The application consists of three main services:
@@ -191,26 +321,96 @@ Health check configuration:
 
 ### Common Issues
 
-1. **Build Fails - "npm ci" error**:
+#### Setup & Configuration
+
+1. **Missing Environment Files**:
+   ```bash
+   # Backend
+   cp backend/.env.example backend/.env
+   # Edit with your Supabase credentials
+
+   # Frontend
+   cp frontend/.env.example frontend/.env.local
+   # Set NEXT_PUBLIC_API_URL=http://localhost:5000
+   ```
+
+2. **Prisma Client Not Generated**:
+   ```bash
+   cd backend
+   npx prisma generate
+   npx prisma migrate deploy
+   ```
+
+3. **Database Connection Issues**:
+   - Verify `DATABASE_URL` in backend `.env` is correct
+   - Check Supabase connection string format
+   - Ensure `DIRECT_URL` is set for migrations
+   - Test connection: `npx prisma db pull`
+
+#### Build Issues
+
+4. **Build Fails - "npm ci" error**:
    - Ensure `package-lock.json` is not in `.dockerignore`
    - Run `npm install` locally to regenerate lock file
+   - Clear npm cache: `npm cache clean --force`
 
-2. **Permission Denied on Volume Mounts**:
+5. **Frontend Build Fails**:
+   - Ensure `output: "standalone"` is set in `next.config.ts`
+   - Check for TypeScript errors: `npm run build` in frontend directory
+   - Verify all environment variables are set in `.env.local`
+
+6. **Backend Docker Build Fails**:
+   - Verify Prisma schema is valid: `npx prisma validate`
+   - Check native dependency compilation (bcrypt, prisma)
+   - Ensure sufficient disk space for build
+
+#### Runtime Issues
+
+7. **Permission Denied on Volume Mounts**:
    - For development, `docker-compose.yml` uses `user: root` to avoid this
    - For production, no volume mounts are used
+   - Check file ownership: `ls -la backend/ frontend/`
 
-3. **Health Check Failing**:
+8. **Health Check Failing**:
    - Verify backend `/health` endpoint exists and returns 200
-   - Check container logs: `docker logs <container_name>`
+   - Check container logs: `docker logs budget-tracker-backend`
    - Increase `start_period` if app takes longer to start
+   - Test manually: `curl http://localhost:5000/health`
 
-4. **Frontend Build Fails**:
-   - Ensure `output: "standalone"` is set in `next.config.ts`
-   - Check for build errors in the Docker build output
-
-5. **Nginx Can't Connect to Services**:
+9. **Nginx Can't Connect to Services**:
    - Verify all services are on the same Docker network
    - Check service names match nginx upstream configuration
+   - Inspect network: `docker network inspect budget-tracker-network`
+   - Test backend from nginx: `docker exec budget-tracker-nginx curl backend:5000/health`
+
+10. **Port Already in Use**:
+    ```bash
+    # Find process using port
+    lsof -i :3000  # Frontend
+    lsof -i :5000  # Backend
+    lsof -i :80    # Nginx
+
+    # Stop conflicting services or change ports in docker-compose.yml
+    ```
+
+#### Docker Compose Issues
+
+11. **Services Won't Start**:
+    ```bash
+    # Rebuild images
+    docker-compose build --no-cache
+
+    # Remove old containers and volumes
+    docker-compose down -v
+
+    # Start fresh
+    docker-compose up -d
+    ```
+
+12. **Hot Reload Not Working (Development)**:
+    - Verify volume mounts in `docker-compose.yml`
+    - Check that `node_modules` is excluded: `/app/node_modules`
+    - Restart services: `docker-compose restart`
 
 ### Image Size Issues
 
