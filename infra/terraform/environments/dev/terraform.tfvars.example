@@ -1,0 +1,20 @@
+# Development Environment Configuration Example
+#
+# Copy this file to terraform.tfvars and fill in your actual values:
+# cp terraform.tfvars.example terraform.tfvars
+#
+# DO NOT commit terraform.tfvars to version control!
+
+# AWS Configuration
+aws_region = "us-east-1"
+
+# Lightsail Configuration
+instance_name     = "zfb-dev"
+availability_zone = "us-east-1a"
+blueprint_id      = "ubuntu_22_04"
+bundle_id         = "nano_2_0" # $3.50/month
+
+# SSH Configuration
+# Generate your SSH key: ssh-keygen -t ed25519 -C "your_email@example.com"
+# Then paste the public key here (contents of ~/.ssh/id_ed25519.pub)
+ssh_public_key = "REPLACE_WITH_YOUR_PUBLIC_SSH_KEY"
