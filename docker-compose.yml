@@ -1,11 +1,12 @@
 version: '3.8'
 
 services:
-  # Note: Using Supabase cloud for database, not local PostgreSQL
-  # This docker-compose is primarily for backend development
-
+  # Backend API service
   backend:
-    build: ./backend
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: production
     container_name: budget-tracker-backend
     ports:
       - "5000:5000"
@@ -17,7 +18,48 @@ services:
       - ./backend:/app
       - /app/node_modules
     command: npm run dev
+    user: root  # Override for development with volumes
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
     restart: unless-stopped
+    networks:
+      - budget-tracker-network
+
+  # Frontend Next.js service
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: runner
+    container_name: budget-tracker-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+    env_file:
+      - ./frontend/.env.local
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
+    command: npm run dev
+    user: root  # Override for development with volumes
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+    networks:
+      - budget-tracker-network
 
   # Optional: Add PostgreSQL for local development (instead of Supabase)
   # Uncomment this section if you want to develop without Supabase
@@ -33,6 +75,12 @@ services:
   #   volumes:
   #     - postgres_data:/var/lib/postgresql/data
   #   restart: unless-stopped
+  #   networks:
+  #     - budget-tracker-network
+
+networks:
+  budget-tracker-network:
+    driver: bridge
 
 # volumes:
 #   postgres_data:

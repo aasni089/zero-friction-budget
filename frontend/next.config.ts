@@ -5,6 +5,8 @@ const nextConfig: NextConfig = {
   compiler: {
     removeConsole: process.env.NODE_ENV === "production",
   },
+  // Enable standalone output for Docker optimization
+  output: "standalone",
 };
 
 export default nextConfig;

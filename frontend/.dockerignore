@@ -4,6 +4,10 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
+# Next.js build outputs
+.next
+out
+
 # Environment variables
 .env
 .env.*
@@ -14,54 +18,36 @@ yarn-error.log*
 .gitignore
 .gitattributes
 
-# Logs
-logs
-*.log
-npm-debug.log*
-pids
-*.pid
-*.seed
-*.pid.lock
-
-# Testing
-coverage
-.nyc_output
-tests
-__tests__
-*.test.js
-*.spec.js
-
 # IDE and Editor
 .vscode
 .idea
 *.swp
 *.swo
 *~
-.DS_Store
 
 # Documentation
 *.md
-!README.md
+README.md
 docs
 
 # Docker
 Dockerfile*
-docker-compose*
 .dockerignore
 
-# Prisma migrations (keep schema.prisma)
-prisma/migrations
+# Testing
+coverage
+tests
+__tests__
+*.test.ts
+*.test.tsx
+*.spec.ts
+*.spec.tsx
+
+# OS
+.DS_Store
+Thumbs.db
 
 # Temporary files
 tmp
 temp
 .tmp
-.temp
-
-# Build artifacts (if any)
-dist
-build
-
-# OS
-.DS_Store
-Thumbs.db
